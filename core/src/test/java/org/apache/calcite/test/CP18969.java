@@ -120,20 +120,10 @@ public class CP18969 {
             "F_3_SUB"))
     );
 
-    b.project(
-        b.literal(Boolean.TRUE)
-    );
-
-    b.aggregate(b.groupKey(
-        b.field(0)
-    ));
-
     b.correlate(
         JoinRelType.INNER,
-        cor0.get().id,
-        b.field(2, 0, "F_1")
+        cor0.get().id
     );
-
 
 
     RelNode q = b.build();
