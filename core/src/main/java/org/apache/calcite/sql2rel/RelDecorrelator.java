@@ -27,10 +27,7 @@ import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.hep.HepPlanner;
 import org.apache.calcite.plan.hep.HepProgram;
 import org.apache.calcite.plan.hep.HepRelVertex;
-import org.apache.calcite.rel.BiRel;
-import org.apache.calcite.rel.RelCollation;
-import org.apache.calcite.rel.RelHomogeneousShuttle;
-import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.*;
 import org.apache.calcite.rel.core.Aggregate;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.core.Correlate;
@@ -54,6 +51,7 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.rules.FilterCorrelateRule;
 import org.apache.calcite.rel.rules.FilterJoinRule;
 import org.apache.calcite.rel.rules.FilterProjectTransposeRule;
+import org.apache.calcite.rel.rules.JoinPushExpressionsRule;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeField;
@@ -199,6 +197,8 @@ public class RelDecorrelator implements ReflectiveVisitor {
       return rootRel;
     }
 
+    DebugRelWriter.printSimpleToStdout(rootRel);
+
     final RelOptCluster cluster = rootRel.getCluster();
     final RelDecorrelator decorrelator =
         new RelDecorrelator(corelMap,
@@ -237,6 +237,7 @@ public class RelDecorrelator implements ReflectiveVisitor {
     // first adjust count() expression if any
     final RelBuilderFactory f = relBuilderFactory();
     HepProgram program = HepProgram.builder()
+        //.addRuleInstance(JoinPushExpressionsRule.INSTANCE)
         .addRuleInstance(new AdjustProjectForCountAggregateRule(false, f))
         .addRuleInstance(new AdjustProjectForCountAggregateRule(true, f))
         .addRuleInstance(
