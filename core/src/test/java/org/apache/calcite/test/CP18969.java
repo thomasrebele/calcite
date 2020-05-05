@@ -83,16 +83,12 @@ public class CP18969 {
     }));
 
     rootSchema.add("TABLE2", table((tf,b) -> {
-      b.add("F_2A", row_varchar("F_2A_SUB", tf));
+      b.add("F_2A", varchar());
       b.add("F_2B", row_varchar("F_2B_SUB", tf));
     }));
 
     rootSchema.add("TABLE3", table((tf,b) -> {
-      b.add("F_3", varchar());
-    }));
-
-    rootSchema.add("TABLE4", table((tf,b) -> {
-      b.add("F_4", row_varchar("F_4_SUB", tf));
+      b.add("F_3", row_varchar("F_3_SUB", tf));
     }));
 
 
@@ -118,19 +114,10 @@ public class CP18969 {
     b.scan("TABLE3");
 
     b.join(JoinRelType.INNER, b.call(SqlStdOperatorTable.EQUALS,
-        b.field(2, 1, "F_3"),
+        b.field(2, 0, "F_2A"),
         b.field(
-            b.field(2, 0, "F_2A"),
-            "F_2A_SUB"))
-    );
-
-    b.scan("TABLE4");
-
-    b.join(JoinRelType.INNER, b.call(SqlStdOperatorTable.EQUALS,
-        b.field(2, 0, "F_3"),
-        b.field(
-            b.field(2, 1, "F_4"),
-            "F_4_SUB"))
+            b.field(2, 1, "F_3"),
+            "F_3_SUB"))
     );
 
     b.project(
