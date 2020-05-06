@@ -25,16 +25,23 @@ import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeSystemImpl;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCorrelVariable;
+import org.apache.calcite.rex.RexDynamicParam;
 import org.apache.calcite.schema.SchemaPlus;
 import org.apache.calcite.schema.impl.AbstractTable;
+import org.apache.calcite.sql.SqlExplainLevel;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.BasicSqlType;
+import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql2rel.RelDecorrelator;
 import org.apache.calcite.tools.FrameworkConfig;
 import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.util.Holder;
 
+import java.util.Arrays;
 import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 import static org.apache.calcite.sql.type.SqlTypeName.VARCHAR;
 import static org.apache.calcite.tools.Frameworks.createRootSchema;
@@ -42,41 +49,95 @@ import static org.apache.calcite.tools.Frameworks.newConfigBuilder;
 
 public class CP18969 {
 
-  static RelDataType varchar() {
-    return new BasicSqlType(new RelDataTypeSystemImpl() { }, VARCHAR);
+  static interface FieldT extends BiConsumer<RelDataTypeFactory, RelDataTypeFactory.Builder> {
   }
 
-  static RelDataType row_varchar(String name, RelDataTypeFactory tf) {
-    RelDataTypeFactory.FieldInfoBuilder builder = tf.builder();
-    builder.add(name, varchar());
-    return builder.build();
+  static interface RowT extends Function<RelDataTypeFactory, RelDataType> {
   }
 
-  static AbstractTable table(BiConsumer<RelDataTypeFactory, RelDataTypeFactory.Builder> build) {
+  static FieldT field(String name, SqlTypeName type) {
+    return (tf, b) -> b.add(name, type);
+  }
+
+  static FieldT field(String name, RowT type) {
+    return (tf, b) -> b.add(name, type.apply(tf));
+  }
+
+  static RowT row(FieldT... fields) {
+    return (tf) -> {
+      RelDataTypeFactory.Builder builder = tf.builder();
+      for (FieldT f : fields) {
+        f.accept(tf, builder);
+      }
+      return builder.build();
+    };
+  }
+
+  static AbstractTable table(FieldT... fields) {
     return new AbstractTable() {
       @Override
       public RelDataType getRowType(RelDataTypeFactory typeFactory) {
-        RelDataTypeFactory.Builder builder = typeFactory.builder();
-        build.accept(typeFactory, builder);
-        return builder.build();
+        return row(fields).apply(typeFactory);
       }
     };
   }
 
   public static void main(String[] args) throws Exception {
+    test2();
+  }
+
+  public static void test2() throws Exception {
     SchemaPlus rootSchema = createRootSchema(true);
-    rootSchema.add("TABLE1", table((tf, b) -> {
-      b.add("F_1", varchar());
-    }));
+    rootSchema.add("COMPANY", table(
+        field("ADDRESS", row(field("CITY", VARCHAR)))
+    ));
 
-    rootSchema.add("TABLE2", table((tf,b) -> {
-      b.add("F_2B", row_varchar("F_2B_SUB", tf));
-    }));
+    //CalciteAssert.addSchema(rootSchema, CalciteAssert.SchemaSpec.BOOKSTORE);
 
-    rootSchema.add("TABLE3", table((tf,b) -> {
-      b.add("F_3", row_varchar("F_3_SUB", tf));
-    }));
+    FrameworkConfig fwkCfg = newConfigBuilder().defaultSchema(rootSchema).build();
+    RelBuilder b = RelBuilder.create(fwkCfg);
+    RexBuilder r = b.getRexBuilder();
+    final Holder<RexCorrelVariable> cor0 = Holder.of(null);
 
+    b.scan("COMPANY");
+    b.variable(cor0);
+
+    b.scan("COMPANY");
+    b.filter(
+        b.call(SqlStdOperatorTable.EQUALS,
+            b.literal("Munich"),
+            b.field(
+                b.field(cor0.get(), "ADDRESS"),
+                "CITY"))
+    );
+
+    b.correlate(
+        JoinRelType.LEFT,
+        cor0.get().id
+    );
+
+
+    RelNode q = b.build();
+
+    System.out.println("before decorrelate");
+    DebugRelWriter.printSimpleToStdout(q);
+
+    q = RelDecorrelator.decorrelateQuery(q, b);
+
+    System.out.println("after decorrelate");
+    DebugRelWriter.printSimpleToStdout(q);
+
+    String s = DebugRelWriter.explain(q, SqlExplainLevel.ALL_ATTRIBUTES);
+    if (s.contains("$cor") && !s.contains("LogicalCorrelate")) {
+      System.out.println("ERROR");
+    }
+  }
+
+  public static void test1() throws Exception {
+    SchemaPlus rootSchema = createRootSchema(true);
+    rootSchema.add("TABLE1", table(field("F_1", VARCHAR)));
+    rootSchema.add("TABLE2", table(field("F_2", row(field("F_2_SUB", VARCHAR)))));
+    rootSchema.add("TABLE3", table(field("F_3", row(field("F_3_SUB", VARCHAR)))));
 
     FrameworkConfig fwkCfg = newConfigBuilder().defaultSchema(rootSchema).build();
     RelBuilder b = RelBuilder.create(fwkCfg);
@@ -92,14 +153,14 @@ public class CP18969 {
         b.call(SqlStdOperatorTable.EQUALS,
             b.field(cor0.get(), "F_1"),
             b.field(
-                b.field("F_2B"),
-                "F_2B_SUB"))
+                b.field("F_2"),
+                "F_2_SUB"))
     );
 
     b.scan("TABLE3");
 
     b.join(JoinRelType.INNER, b.call(SqlStdOperatorTable.EQUALS,
-        b.field(b.field(2, "TABLE2", "F_2B"), "F_2B_SUB"),
+        b.field(b.field(2, "TABLE2", "F_2"), "F_2_SUB"),
         b.field(b.field(2, "TABLE3", "F_3"), "F_3_SUB"))
     );
 
