@@ -17,6 +17,7 @@
 
 package org.apache.calcite.test;
 
+import org.apache.calcite.adapter.java.ReflectiveSchema;
 import org.apache.calcite.rel.DebugRelWriter;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.JoinRelType;
@@ -83,32 +84,26 @@ public class CP18969 {
   }
 
   public static void main(String[] args) throws Exception {
-    test2();
+    test1();
   }
 
   public static void test2() throws Exception {
     SchemaPlus rootSchema = createRootSchema(true);
-    rootSchema.add("COMPANY", table(
-        field("ADDRESS", row(field("CITY", VARCHAR)))
-    ));
-
-    //CalciteAssert.addSchema(rootSchema, CalciteAssert.SchemaSpec.BOOKSTORE);
-
+    CalciteAssert.addSchema(rootSchema, CalciteAssert.SchemaSpec.BOOKSTORE);
     FrameworkConfig fwkCfg = newConfigBuilder().defaultSchema(rootSchema).build();
     RelBuilder b = RelBuilder.create(fwkCfg);
-    RexBuilder r = b.getRexBuilder();
     final Holder<RexCorrelVariable> cor0 = Holder.of(null);
 
-    b.scan("COMPANY");
+    b.scan("bookstore", "authors");
     b.variable(cor0);
 
-    b.scan("COMPANY");
+    b.scan("bookstore", "authors");
     b.filter(
         b.call(SqlStdOperatorTable.EQUALS,
             b.literal("Munich"),
             b.field(
-                b.field(cor0.get(), "ADDRESS"),
-                "CITY"))
+                b.field(cor0.get(), "birthPlace"),
+                "city"))
     );
 
     b.correlate(
@@ -133,16 +128,14 @@ public class CP18969 {
     }
   }
 
+
   public static void test1() throws Exception {
     SchemaPlus rootSchema = createRootSchema(true);
     rootSchema.add("TABLE1", table(field("F_1", VARCHAR)));
     rootSchema.add("TABLE2", table(field("F_2", row(field("F_2_SUB", VARCHAR)))));
     rootSchema.add("TABLE3", table(field("F_3", row(field("F_3_SUB", VARCHAR)))));
-
     FrameworkConfig fwkCfg = newConfigBuilder().defaultSchema(rootSchema).build();
     RelBuilder b = RelBuilder.create(fwkCfg);
-    RexBuilder r = b.getRexBuilder();
-
     final Holder<RexCorrelVariable> cor0 = Holder.of(null);
 
     b.scan("TABLE1");

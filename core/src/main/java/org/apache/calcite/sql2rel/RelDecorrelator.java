@@ -197,8 +197,6 @@ public class RelDecorrelator implements ReflectiveVisitor {
       return rootRel;
     }
 
-    DebugRelWriter.printSimpleToStdout(rootRel);
-
     final RelOptCluster cluster = rootRel.getCluster();
     final RelDecorrelator decorrelator =
         new RelDecorrelator(corelMap,
