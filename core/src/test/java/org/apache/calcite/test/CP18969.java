@@ -131,29 +131,31 @@ public class CP18969 {
 
   public static void test1() throws Exception {
     SchemaPlus rootSchema = createRootSchema(true);
-    rootSchema.add("TABLE1", table(field("F_1", VARCHAR)));
-    rootSchema.add("TABLE2", table(field("F_2", row(field("F_2_SUB", VARCHAR)))));
     rootSchema.add("TABLE3", table(field("F_3", row(field("F_3_SUB", VARCHAR)))));
+
+
+
+    CalciteAssert.addSchema(rootSchema, CalciteAssert.SchemaSpec.BOOKSTORE);
     FrameworkConfig fwkCfg = newConfigBuilder().defaultSchema(rootSchema).build();
     RelBuilder b = RelBuilder.create(fwkCfg);
     final Holder<RexCorrelVariable> cor0 = Holder.of(null);
 
-    b.scan("TABLE1");
+    b.scan("bookstore", "authors").as("a1");
     b.variable(cor0);
 
-    b.scan("TABLE2");
+    b.scan("bookstore", "authors").as("a2");
     b.filter(
         b.call(SqlStdOperatorTable.EQUALS,
-            b.field(cor0.get(), "F_1"),
+            b.field(cor0.get(), "name"),
             b.field(
-                b.field("F_2"),
-                "F_2_SUB"))
+                b.field("birthPlace"),
+                "city"))
     );
 
     b.scan("TABLE3");
 
     b.join(JoinRelType.INNER, b.call(SqlStdOperatorTable.EQUALS,
-        b.field(b.field(2, "TABLE2", "F_2"), "F_2_SUB"),
+        b.field(b.field(2, "a2", "birthPlace"), "city"),
         b.field(b.field(2, "TABLE3", "F_3"), "F_3_SUB"))
     );
 
