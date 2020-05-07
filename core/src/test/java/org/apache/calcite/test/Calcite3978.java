@@ -18,6 +18,7 @@
 package org.apache.calcite.test;
 
 import org.apache.calcite.adapter.java.ReflectiveSchema;
+import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.DebugRelWriter;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.JoinRelType;
@@ -48,7 +49,7 @@ import static org.apache.calcite.sql.type.SqlTypeName.VARCHAR;
 import static org.apache.calcite.tools.Frameworks.createRootSchema;
 import static org.apache.calcite.tools.Frameworks.newConfigBuilder;
 
-public class CP18969 {
+public class Calcite3978 {
 
   static interface FieldT extends BiConsumer<RelDataTypeFactory, RelDataTypeFactory.Builder> {
   }
@@ -84,78 +85,30 @@ public class CP18969 {
   }
 
   public static void main(String[] args) throws Exception {
-    test1();
-  }
-
-  public static void test2() throws Exception {
     SchemaPlus rootSchema = createRootSchema(true);
-    CalciteAssert.addSchema(rootSchema, CalciteAssert.SchemaSpec.BOOKSTORE);
-    FrameworkConfig fwkCfg = newConfigBuilder().defaultSchema(rootSchema).build();
-    RelBuilder b = RelBuilder.create(fwkCfg);
-    final Holder<RexCorrelVariable> cor0 = Holder.of(null);
-
-    b.scan("bookstore", "authors");
-    b.variable(cor0);
-
-    b.scan("bookstore", "authors");
-    b.filter(
-        b.call(SqlStdOperatorTable.EQUALS,
-            b.literal("Munich"),
-            b.field(
-                b.field(cor0.get(), "birthPlace"),
-                "city"))
-    );
-
-    b.correlate(
-        JoinRelType.LEFT,
-        cor0.get().id
-    );
-
-
-    RelNode q = b.build();
-
-    System.out.println("before decorrelate");
-    DebugRelWriter.printSimpleToStdout(q);
-
-    q = RelDecorrelator.decorrelateQuery(q, b);
-
-    System.out.println("after decorrelate");
-    DebugRelWriter.printSimpleToStdout(q);
-
-    String s = DebugRelWriter.explain(q, SqlExplainLevel.ALL_ATTRIBUTES);
-    if (s.contains("$cor") && !s.contains("LogicalCorrelate")) {
-      System.out.println("ERROR");
-    }
-  }
-
-
-  public static void test1() throws Exception {
-    SchemaPlus rootSchema = createRootSchema(true);
+    rootSchema.add("TABLE1", table(field("F_1", VARCHAR)));
+    rootSchema.add("TABLE2", table(field("F_2", row(field("F_2_SUB", VARCHAR)))));
     rootSchema.add("TABLE3", table(field("F_3", row(field("F_3_SUB", VARCHAR)))));
-
-
-
-    CalciteAssert.addSchema(rootSchema, CalciteAssert.SchemaSpec.BOOKSTORE);
     FrameworkConfig fwkCfg = newConfigBuilder().defaultSchema(rootSchema).build();
     RelBuilder b = RelBuilder.create(fwkCfg);
     final Holder<RexCorrelVariable> cor0 = Holder.of(null);
 
-    b.scan("bookstore", "authors").as("a1");
+    b.scan("TABLE1");
     b.variable(cor0);
 
-    b.scan("bookstore", "authors").as("a2");
+    b.scan("TABLE2");
     b.filter(
         b.call(SqlStdOperatorTable.EQUALS,
-            b.field(cor0.get(), "name"),
+            b.field(cor0.get(), "F_1"),
             b.field(
-                b.field("birthPlace"),
-                "city"))
+                b.field("F_2"),
+                "F_2_SUB"))
     );
 
     b.scan("TABLE3");
 
     b.join(JoinRelType.INNER, b.call(SqlStdOperatorTable.EQUALS,
-        b.field(b.field(2, "a2", "birthPlace"), "city"),
+        b.field(b.field(2, "TABLE2", "F_2"), "F_2_SUB"),
         b.field(b.field(2, "TABLE3", "F_3"), "F_3_SUB"))
     );
 
@@ -168,12 +121,16 @@ public class CP18969 {
     RelNode q = b.build();
 
     System.out.println("before decorrelate");
-    DebugRelWriter.printSimpleToStdout(q);
+    System.out.println(RelOptUtil.toString((q)));
 
     q = RelDecorrelator.decorrelateQuery(q, b);
 
     System.out.println("after decorrelate");
-    DebugRelWriter.printSimpleToStdout(q);
+    String output = RelOptUtil.toString((q));
+    System.out.println(output);
 
+    if (output.contains("LogicalJoin(condition=[true]")) {
+      System.out.println("ERROR");
+    }
   }
 }
