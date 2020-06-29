@@ -54,7 +54,8 @@ public class Calcite3977 {
 
     b.correlate(
         JoinRelType.LEFT,
-        cor0.get().id
+        cor0.get().id,
+        b.field("birthPlace")
     );
 
 
