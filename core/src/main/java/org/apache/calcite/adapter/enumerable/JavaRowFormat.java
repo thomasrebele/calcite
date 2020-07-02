@@ -18,12 +18,7 @@ package org.apache.calcite.adapter.enumerable;
 
 import org.apache.calcite.adapter.java.JavaTypeFactory;
 import org.apache.calcite.interpreter.Row;
-import org.apache.calcite.linq4j.tree.Expression;
-import org.apache.calcite.linq4j.tree.Expressions;
-import org.apache.calcite.linq4j.tree.IndexExpression;
-import org.apache.calcite.linq4j.tree.MemberExpression;
-import org.apache.calcite.linq4j.tree.MethodCallExpression;
-import org.apache.calcite.linq4j.tree.Types;
+import org.apache.calcite.linq4j.tree.*;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.runtime.FlatLists;
 import org.apache.calcite.runtime.Unit;
@@ -44,7 +39,8 @@ public enum JavaRowFormat {
       return typeFactory.getJavaClass(type);
     }
 
-    @Override Type javaFieldClass(JavaTypeFactory typeFactory, RelDataType type,
+    @Override
+    Type javaFieldClass(JavaTypeFactory typeFactory, RelDataType type,
         int index) {
       return typeFactory.getJavaClass(type.getFieldList().get(index).getType());
     }
@@ -84,7 +80,8 @@ public enum JavaRowFormat {
           type.getFieldList().get(0).getType());
     }
 
-    @Override Type javaFieldClass(JavaTypeFactory typeFactory, RelDataType type,
+    @Override
+    Type javaFieldClass(JavaTypeFactory typeFactory, RelDataType type,
         int index) {
       return javaRowClass(typeFactory, type);
     }
@@ -101,9 +98,11 @@ public enum JavaRowFormat {
     }
   },
 
-  /** A list that is comparable and immutable. Useful for records with 0 fields
+  /**
+   * A list that is comparable and immutable. Useful for records with 0 fields
    * (empty list is a good singleton) but sometimes also for records with 2 or
-   * more fields that you need to be comparable, say as a key in a lookup. */
+   * more fields that you need to be comparable, say as a key in a lookup.
+   */
   LIST {
     Type javaRowClass(
         JavaTypeFactory typeFactory,
@@ -111,7 +110,8 @@ public enum JavaRowFormat {
       return FlatLists.ComparableList.class;
     }
 
-    @Override Type javaFieldClass(JavaTypeFactory typeFactory, RelDataType type,
+    @Override
+    Type javaFieldClass(JavaTypeFactory typeFactory, RelDataType type,
         int index) {
       return Object.class;
     }
@@ -121,9 +121,9 @@ public enum JavaRowFormat {
       switch (expressions.size()) {
       case 0:
         return Expressions.field(
-          null,
-          FlatLists.class,
-          "COMPARABLE_EMPTY_LIST");
+            null,
+            FlatLists.class,
+            "COMPARABLE_EMPTY_LIST");
       case 2:
         return Expressions.convert_(
             Expressions.call(
@@ -192,16 +192,19 @@ public enum JavaRowFormat {
    * See {@link org.apache.calcite.interpreter.Row}
    */
   ROW {
-    @Override Type javaRowClass(JavaTypeFactory typeFactory, RelDataType type) {
+    @Override
+    Type javaRowClass(JavaTypeFactory typeFactory, RelDataType type) {
       return Row.class;
     }
 
-    @Override Type javaFieldClass(JavaTypeFactory typeFactory, RelDataType type,
+    @Override
+    Type javaFieldClass(JavaTypeFactory typeFactory, RelDataType type,
         int index) {
       return Object.class;
     }
 
-    @Override public Expression record(Type javaRowClass,
+    @Override
+    public Expression record(Type javaRowClass,
         List<Expression> expressions) {
       return Expressions.call(BuiltInMethod.ROW_AS_COPY.method, expressions);
     }
@@ -215,6 +218,14 @@ public enum JavaRowFormat {
       }
       return EnumUtils.convert(e, fromType, fieldType);
     }
+
+    @Override
+    public Expression fieldDynamic(Expression expression, Expression field) {
+      return Expressions.call(expression,
+          BuiltInMethod.ROW_VALUE.method, Expressions.constant(field));
+    }
+
+
   },
 
   ARRAY {
@@ -224,7 +235,8 @@ public enum JavaRowFormat {
       return Object[].class;
     }
 
-    @Override Type javaFieldClass(JavaTypeFactory typeFactory, RelDataType type,
+    @Override
+    Type javaFieldClass(JavaTypeFactory typeFactory, RelDataType type,
         int index) {
       return Object.class;
     }
@@ -233,7 +245,8 @@ public enum JavaRowFormat {
       return Expressions.newArrayInit(Object.class, expressions);
     }
 
-    @Override public Expression comparer() {
+    @Override
+    public Expression comparer() {
       return Expressions.call(BuiltInMethod.ARRAY_COMPARER.method);
     }
 
@@ -245,6 +258,26 @@ public enum JavaRowFormat {
         fromType = e.getType();
       }
       return EnumUtils.convert(e, fromType, fieldType);
+    }
+
+    @Override
+    public Expression fieldDynamic(Expression expression, Expression field) {
+      return Expressions.arrayIndex(expression, field);
+    }
+
+    public Expression setFieldDynamic(Expression expression, Expression field, Expression value) {
+      final IndexExpression e = Expressions.arrayIndex(expression,
+          Expressions.constant(field));
+      return Expressions.assign(e, value);
+    }
+
+    @Override
+    public Expression copy(ParameterExpression parameter, ParameterExpression outputArray,
+        int outputStartIndex, int length) {
+
+
+      return Expressions.call(BuiltInMethod.ARRAY_COPY.method, parameter, Expressions.constant(0)
+          , outputArray, Expressions.constant(outputStartIndex), Expressions.constant(length));
     }
   };
 
@@ -270,8 +303,8 @@ public enum JavaRowFormat {
    * {@code Object.class} in {@link JavaRowFormat#ARRAY} case.
    *
    * @param typeFactory type factory to resolve java types
-   * @param type row type
-   * @param index field index
+   * @param type        row type
+   * @param index       field index
    * @return java type used to store the field
    */
   abstract Type javaFieldClass(JavaTypeFactory typeFactory, RelDataType type,
@@ -284,11 +317,32 @@ public enum JavaRowFormat {
     return null;
   }
 
-  /** Returns a reference to a particular field.
+  /**
+   * Returns a reference to a particular field.
    *
    * <p>{@code fromType} may be null; if null, uses the natural type of the
    * field.
    */
   public abstract Expression field(Expression expression, int field,
       Type fromType, Type fieldType);
+
+  /**
+   * Similar to {@link #field(Expression, int, Type, Type)}, where the field index is determined
+   * dynamically at runtime.
+   */
+  public Expression fieldDynamic(Expression expression, Expression field) {
+    throw new UnsupportedOperationException("" + this);
+  }
+
+  public Expression setFieldDynamic(Expression expression, Expression field, Expression value) {
+    throw new UnsupportedOperationException("" + this);
+  }
+
+  /**
+   * Returns an expression that copies the fields of a row of this type to the array.
+   */
+  public Expression copy(ParameterExpression parameter, ParameterExpression outputArray,
+      int outputStartIndex, int length) {
+    return null;
+  }
 }

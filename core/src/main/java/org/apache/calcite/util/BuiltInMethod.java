@@ -245,6 +245,8 @@ public enum BuiltInMethod {
   FUNCTION1_APPLY(Function1.class, "apply", Object.class),
   ARRAYS_AS_LIST(Arrays.class, "asList", Object[].class),
   ARRAY(SqlFunctions.class, "array", Object[].class),
+  ARRAY_COPY(System.class, "arraycopy", Object.class, int.class, Object.class, int.class,
+      int.class),
   FLAT_PRODUCT(SqlFunctions.class, "flatProduct", int[].class, boolean.class,
       FlatProductInputType[].class),
   FLAT_LIST(SqlFunctions.class, "flatList"),

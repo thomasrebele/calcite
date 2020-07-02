@@ -25,19 +25,7 @@ import org.apache.calcite.linq4j.Ord;
 import org.apache.calcite.linq4j.function.Function1;
 import org.apache.calcite.linq4j.function.Function2;
 import org.apache.calcite.linq4j.function.Predicate2;
-import org.apache.calcite.linq4j.tree.BlockBuilder;
-import org.apache.calcite.linq4j.tree.BlockStatement;
-import org.apache.calcite.linq4j.tree.ConstantExpression;
-import org.apache.calcite.linq4j.tree.ConstantUntypedNull;
-import org.apache.calcite.linq4j.tree.Expression;
-import org.apache.calcite.linq4j.tree.ExpressionType;
-import org.apache.calcite.linq4j.tree.Expressions;
-import org.apache.calcite.linq4j.tree.MethodCallExpression;
-import org.apache.calcite.linq4j.tree.MethodDeclaration;
-import org.apache.calcite.linq4j.tree.ParameterExpression;
-import org.apache.calcite.linq4j.tree.Primitive;
-import org.apache.calcite.linq4j.tree.Types;
-import org.apache.calcite.linq4j.tree.UnaryExpression;
+import org.apache.calcite.linq4j.tree.*;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.type.RelDataType;
@@ -59,14 +47,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Type;
 import java.math.BigDecimal;
-import java.util.AbstractList;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Utilities for generating programs in the Enumerable (functional)
@@ -74,7 +55,8 @@ import java.util.Map;
  */
 public class EnumUtils {
 
-  private EnumUtils() {}
+  private EnumUtils() {
+  }
 
   static final boolean BRIDGE_METHODS = true;
 
@@ -87,7 +69,9 @@ public class EnumUtils {
   public static final List<String> LEFT_RIGHT =
       ImmutableList.of("left", "right");
 
-  /** Declares a method that overrides another method. */
+  /**
+   * Declares a method that overrides another method.
+   */
   public static MethodDeclaration overridingMethodDecl(Method method,
       Iterable<ParameterExpression> parameters,
       BlockStatement body) {
@@ -112,6 +96,7 @@ public class EnumUtils {
       public Type get(int index) {
         return EnumUtils.javaClass(typeFactory, inputTypes.get(index));
       }
+
       public int size() {
         return inputTypes.size();
       }
@@ -130,6 +115,7 @@ public class EnumUtils {
             ? inputFields.get(arg).getType()
             : extraInputs.get(arg - inputFields.size()).getType();
       }
+
       public int size() {
         return argList.size();
       }
@@ -144,6 +130,24 @@ public class EnumUtils {
     // Generate all fields.
     final List<Expression> expressions = new ArrayList<>();
     final int outputFieldCount = physType.getRowType().getFieldCount();
+
+    // If there are many output fields, create the output dynamically so that the code size stays
+    // below the limit. See CALCITE-3094.
+    final boolean generateCompactCode = outputFieldCount >= 100;
+    final ParameterExpression compactOutputVar;
+    final BlockBuilder compactCode = new BlockBuilder();
+    if (generateCompactCode) {
+      // TODO tr: use physType for the correct type
+      compactOutputVar = Expressions.variable(Object[].class, "outputArray");
+      DeclarationStatement exp = Expressions.declare(0, compactOutputVar,
+          new NewArrayExpression(Object.class, 1,
+              Expressions.constant(outputFieldCount), null));
+      compactCode.add(exp);
+    } else {
+      compactOutputVar = null;
+    }
+
+    int outputField = 0;
     for (Ord<PhysType> ord : Ord.zip(inputPhysTypes)) {
       final PhysType inputPhysType =
           ord.e.makeNullable(joinType.generatesNullsOn(ord.i));
@@ -158,7 +162,46 @@ public class EnumUtils {
         // For instance, if semi-join needs to return just the left inputs
         break;
       }
+
       final int fieldCount = inputPhysType.getRowType().getFieldCount();
+
+      if (generateCompactCode) {
+        // use an array copy if possible
+        Expression copyExpr = inputPhysType.getFormat().copy(parameter, compactOutputVar,
+            outputField,
+            fieldCount);
+        if (copyExpr != null) {
+          compactCode.add(Expressions.statement(copyExpr));
+        } else {
+          // use a for loop with dynamic field access
+          final ParameterExpression i_ = Expressions.parameter(int.class, "i");
+          final BlockBuilder builder = new BlockBuilder();
+          Expression val = inputPhysType.getFormat().fieldDynamic(parameter, i_);
+
+          Expression assignment =
+              physType.getFormat().setFieldDynamic(compactOutputVar,
+                  outputField == 0 ? i_ : Expressions.add(i_, Expressions.constant(outputField))
+                  , val);
+          builder.add(Expressions.statement(assignment));
+
+          Statement block = Expressions.for_(Expressions.declare(0, i_,
+              Expressions.constant(0)),
+              Expressions.lessThan(i_,
+                  Expressions.constant(fieldCount)),
+              Expressions.preIncrementAssign(i_),
+              builder.toBlock());
+
+          if (joinType.generatesNullsOn(ord.i)) {
+            block = Expressions.ifThen(Expressions.notEqual(parameter, Expressions.constant(null)),
+                block);
+          }
+          compactCode.add(block);
+        }
+        outputField += fieldCount;
+        continue;
+      }
+
+      // otherwise access the fields individually
       for (int i = 0; i < fieldCount; i++) {
         Expression expression =
             inputPhysType.fieldReference(parameter, i,
@@ -173,11 +216,21 @@ public class EnumUtils {
         expressions.add(expression);
       }
     }
+
+    if (generateCompactCode) {
+      compactCode.add(compactOutputVar);
+      return Expressions.lambda(
+          Function2.class,
+          compactCode.toBlock(),
+          parameters);
+    }
+
     return Expressions.lambda(
         Function2.class,
         physType.record(expressions),
         parameters);
   }
+
 
   /**
    * In Calcite, {@code java.sql.Date} and {@code java.sql.Time} are
@@ -212,9 +265,11 @@ public class EnumUtils {
     return operand;
   }
 
-  /** Converts from internal representation to JDBC representation used by
+  /**
+   * Converts from internal representation to JDBC representation used by
    * arguments of user-defined functions. For example, converts date values from
-   * {@code int} to {@link java.sql.Date}. */
+   * {@code int} to {@link java.sql.Date}.
+   */
   private static Expression fromInternal(Expression operand, Type targetType) {
     return fromInternal(operand, operand.getType(), targetType);
   }
@@ -566,7 +621,7 @@ public class EnumUtils {
    * Integer directly).
    *
    * @param targetTypes Formal operand types declared for the function arguments
-   * @param arguments Input expressions to the function
+   * @param arguments   Input expressions to the function
    * @return Input expressions with probable type conversion
    */
   static List<Expression> convertAssignableTypes(Class<?>[] targetTypes,
@@ -578,7 +633,7 @@ public class EnumUtils {
       }
     } else {
       int j = 0;
-      for (Expression argument: arguments) {
+      for (Expression argument : arguments) {
         Class<?> type;
         if (!targetTypes[j].isArray()) {
           type = targetTypes[j];
@@ -613,16 +668,16 @@ public class EnumUtils {
    * Type, String, Iterable<? extends Expression>)}. Try best effort to convert the
    * accepted arguments to match parameter type.
    *
-   * @param clazz Class against which method is invoked
-   * @param methodName Name of method
-   * @param arguments argument expressions
+   * @param clazz            Class against which method is invoked
+   * @param methodName       Name of method
+   * @param arguments        argument expressions
    * @param targetExpression target expression
-   *
    * @return MethodCallExpression that call the given name method
    * @throws RuntimeException if no suitable method found
    */
   public static MethodCallExpression call(Class clazz, String methodName,
-       List<? extends Expression> arguments, Expression targetExpression) {
+      List<? extends Expression> arguments,
+      Expression targetExpression) {
     Class[] argumentTypes = Types.toClassArray(arguments);
     try {
       Method candidate = clazz.getMethod(methodName, argumentTypes);
@@ -649,8 +704,9 @@ public class EnumUtils {
   }
 
   private static List<? extends Expression> matchMethodParameterTypes(boolean varArgs,
-      Class[] parameterTypes, List<? extends Expression> arguments) {
-    if ((varArgs  && arguments.size() < parameterTypes.length - 1)
+      Class[] parameterTypes,
+      List<? extends Expression> arguments) {
+    if ((varArgs && arguments.size() < parameterTypes.length - 1)
         || (!varArgs && arguments.size() != parameterTypes.length)) {
       return null;
     }
@@ -672,10 +728,11 @@ public class EnumUtils {
 
   /**
    * Match an argument expression to method parameter type with best effort
-   * @param argument Argument Expression
+   *
+   * @param argument  Argument Expression
    * @param parameter Parameter type
    * @return Converted argument expression that matches the parameter type.
-   *         Returns null if it is impossible to match.
+   * Returns null if it is impossible to match.
    */
   private static Expression matchMethodParameterType(
       Expression argument, Class parameter) {
@@ -703,7 +760,9 @@ public class EnumUtils {
     return null;
   }
 
-  /** Transforms a JoinRelType to Linq4j JoinType. **/
+  /**
+   * Transforms a JoinRelType to Linq4j JoinType.
+   **/
   static JoinType toLinq4jJoinType(JoinRelType joinRelType) {
     switch (joinRelType) {
     case INNER:
@@ -723,7 +782,9 @@ public class EnumUtils {
         "Unable to convert " + joinRelType + " to Linq4j JoinType");
   }
 
-  /** Returns a predicate expression based on a join condition. **/
+  /**
+   * Returns a predicate expression based on a join condition.
+   **/
   static Expression generatePredicate(
       EnumerableRelImplementor implementor,
       RexBuilder rexBuilder,
@@ -761,7 +822,7 @@ public class EnumUtils {
   /**
    * Generates a window selector which appends attribute of the window based on
    * the parameters.
-   *
+   * <p>
    * Note that it only works for batch scenario. E.g. all data is known and there is no late data.
    */
   static Expression tumblingWindowSelector(
@@ -821,9 +882,11 @@ public class EnumUtils {
    * periods with no input for at least the duration specified by gap parameter.
    */
   public static Enumerable<Object[]> sessionize(Enumerator<Object[]> inputEnumerator,
-      int indexOfWatermarkedColumn, int indexOfKeyColumn, long gap) {
+      int indexOfWatermarkedColumn,
+      int indexOfKeyColumn, long gap) {
     return new AbstractEnumerable<Object[]>() {
-      @Override public Enumerator<Object[]> enumerator() {
+      @Override
+      public Enumerator<Object[]> enumerator() {
         return new SessionizationEnumerator(inputEnumerator,
             indexOfWatermarkedColumn, indexOfKeyColumn, gap);
       }
@@ -842,10 +905,10 @@ public class EnumUtils {
      * Note that it only works for batch scenario. E.g. all data is known and there is no
      * late data.
      *
-     * @param inputEnumerator the enumerator to provide an array of objects as input
+     * @param inputEnumerator          the enumerator to provide an array of objects as input
      * @param indexOfWatermarkedColumn the index of timestamp column upon which a watermark is built
-     * @param indexOfKeyColumn the index of column that acts as grouping key
-     * @param gap gap parameter
+     * @param indexOfKeyColumn         the index of column that acts as grouping key
+     * @param gap                      gap parameter
      */
     SessionizationEnumerator(Enumerator<Object[]> inputEnumerator,
         int indexOfWatermarkedColumn, int indexOfKeyColumn, long gap) {
@@ -857,7 +920,8 @@ public class EnumUtils {
       initialized = false;
     }
 
-    @Override public Object[] current() {
+    @Override
+    public Object[] current() {
       if (!initialized) {
         initialize();
         initialized = true;
@@ -865,17 +929,20 @@ public class EnumUtils {
       return list.pollFirst();
     }
 
-    @Override public boolean moveNext() {
+    @Override
+    public boolean moveNext() {
       return initialized ? list.size() > 0 : inputEnumerator.moveNext();
     }
 
-    @Override public void reset() {
+    @Override
+    public void reset() {
       list.clear();
       inputEnumerator.reset();
       initialized = false;
     }
 
-    @Override public void close() {
+    @Override
+    public void close() {
       list.clear();
       inputEnumerator.close();
       initialized = false;
@@ -961,9 +1028,11 @@ public class EnumUtils {
    * enumerator and produces at least one element for each input element.
    */
   public static Enumerable<Object[]> hopping(Enumerator<Object[]> inputEnumerator,
-      int indexOfWatermarkedColumn, long emitFrequency, long intervalSize) {
+      int indexOfWatermarkedColumn, long emitFrequency,
+      long intervalSize) {
     return new AbstractEnumerable<Object[]>() {
-      @Override public Enumerator<Object[]> enumerator() {
+      @Override
+      public Enumerator<Object[]> enumerator() {
         return new HopEnumerator(inputEnumerator,
             indexOfWatermarkedColumn, emitFrequency, intervalSize);
       }
@@ -980,10 +1049,10 @@ public class EnumUtils {
     /**
      * Note that it only works for batch scenario. E.g. all data is known and there is no late data.
      *
-     * @param inputEnumerator the enumerator to provide an array of objects as input
+     * @param inputEnumerator          the enumerator to provide an array of objects as input
      * @param indexOfWatermarkedColumn the index of timestamp column upon which a watermark is built
-     * @param slide sliding size
-     * @param intervalSize window size
+     * @param slide                    sliding size
+     * @param intervalSize             window size
      */
     HopEnumerator(Enumerator<Object[]> inputEnumerator,
         int indexOfWatermarkedColumn, long slide, long intervalSize) {
@@ -1049,7 +1118,8 @@ public class EnumUtils {
     return new AbstractEnumerable<TResult>() {
       // Applies tumbling on each element from the input enumerator and produces
       // exactly one element for each input element.
-      @Override public Enumerator<TResult> enumerator() {
+      @Override
+      public Enumerator<TResult> enumerator() {
         return new Enumerator<TResult>() {
           Enumerator<TSource> inputs = inputEnumerable.enumerator();
 
