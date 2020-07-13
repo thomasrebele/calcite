@@ -266,9 +266,9 @@ class Dumpers {
         }
         for (RelSubset parent : children) {
           pw.print("\t\tsubset");
-          pw.print(subset.getId());
+          pw.print(subset == null ? "null" : subset.getId());
           pw.print(" -> subset");
-          pw.print(parent.getId());
+          pw.print(parent == null ? "null" : parent.getId());
           pw.print(";");
         }
       }
