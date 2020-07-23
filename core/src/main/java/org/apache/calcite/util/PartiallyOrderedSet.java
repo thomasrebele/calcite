@@ -312,9 +312,12 @@ public class PartiallyOrderedSet<E> extends AbstractSet<E> {
       E e,
       Deque<Node<E>> ancestors,
       boolean up) {
+    final Set<Node<E>> done = new HashSet<>();
     final Set<Node<E>> parents = new HashSet<>();
     while (!ancestors.isEmpty()) {
       final Node<E> ancestor = ancestors.pop();
+      if(done.add(ancestor))
+        continue;
       assert ancestor.e == null
           || (up
           ? !ordering.lessThan(ancestor.e, e)
