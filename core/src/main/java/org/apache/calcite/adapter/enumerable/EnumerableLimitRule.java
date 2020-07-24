@@ -55,6 +55,9 @@ public class EnumerableLimitRule
           sort.getCollation(),
           null,
           null);
+      if (input == null) {
+        return;
+      }
     }
     call.transformTo(
         EnumerableLimit.create(
