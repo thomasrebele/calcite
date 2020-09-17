@@ -670,9 +670,10 @@ public class Bindables {
       super(cluster, rowType, tuples, traitSet);
     }
 
-    @Override public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
+    @Override public RelNode copy(RelOptCluster cluster, RelTraitSet traitSet,
+        List<RelNode> inputs) {
       assert inputs.isEmpty();
-      return new BindableValues(getCluster(), rowType, tuples, traitSet);
+      return new BindableValues(cluster, rowType, tuples, traitSet);
     }
 
     public Class<Object[]> getElementType() {
@@ -814,8 +815,9 @@ public class Bindables {
       super(cluster, traitSet, input, constants, rowType, groups);
     }
 
-    @Override public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-      return new BindableWindow(getCluster(), traitSet, sole(inputs),
+    @Override public RelNode copy(RelOptCluster cluster, RelTraitSet traitSet,
+        List<RelNode> inputs) {
+      return new BindableWindow(cluster, traitSet, sole(inputs),
           constants, rowType, groups);
     }
 
@@ -883,8 +885,9 @@ public class Bindables {
           orderKeys, interval);
     }
 
-    @Override public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-      return new BindableMatch(getCluster(), traitSet, inputs.get(0), rowType,
+    @Override public RelNode copy(RelOptCluster cluster, RelTraitSet traitSet,
+        List<RelNode> inputs) {
+      return new BindableMatch(cluster, traitSet, inputs.get(0), rowType,
           pattern, strictStart, strictEnd, patternDefinitions, measures, after,
           subsets, allRows, partitionKeys, orderKeys, interval);
     }

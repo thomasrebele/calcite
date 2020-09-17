@@ -47,9 +47,10 @@ public class EnumerableRepeatUnion extends RepeatUnion implements EnumerableRel 
     super(cluster, traitSet, seed, iterative, all, iterationLimit);
   }
 
-  @Override public EnumerableRepeatUnion copy(RelTraitSet traitSet, List<RelNode> inputs) {
+  @Override public EnumerableRepeatUnion copy(RelOptCluster cluster, RelTraitSet traitSet,
+      List<RelNode> inputs) {
     assert inputs.size() == 2;
-    return new EnumerableRepeatUnion(getCluster(), traitSet,
+    return new EnumerableRepeatUnion(cluster, traitSet,
         inputs.get(0), inputs.get(1), all, iterationLimit);
   }
 

@@ -91,10 +91,10 @@ public class LogicalValues extends Values {
     return new LogicalValues(cluster, traitSet, rowType, tuples);
   }
 
-  @Override public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
+  @Override public RelNode copy(RelOptCluster cluster, RelTraitSet traitSet, List<RelNode> inputs) {
     assert traitSet.containsIfApplicable(Convention.NONE);
     assert inputs.isEmpty();
-    return new LogicalValues(getCluster(), traitSet, rowType, tuples);
+    return new LogicalValues(cluster, traitSet, rowType, tuples);
   }
 
   /** Creates a LogicalValues that outputs no rows of a given row type. */

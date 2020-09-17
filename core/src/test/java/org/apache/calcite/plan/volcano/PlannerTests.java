@@ -132,9 +132,10 @@ class PlannerTests {
       super(cluster, cluster.traitSetOf(Convention.NONE), input);
     }
 
-    @Override public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
+    @Override public RelNode copy(RelOptCluster cluster, RelTraitSet traitSet,
+        List<RelNode> inputs) {
       assert traitSet.contains(Convention.NONE);
-      return new NoneSingleRel(getCluster(), sole(inputs));
+      return new NoneSingleRel(cluster, sole(inputs));
     }
   }
 
@@ -150,9 +151,10 @@ class PlannerTests {
       return planner.getCostFactory().makeTinyCost();
     }
 
-    @Override public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
+    @Override public RelNode copy(RelOptCluster cluster, RelTraitSet traitSet,
+        List<RelNode> inputs) {
       assert inputs.size() == 2;
-      return new PhysBiRel(getCluster(), traitSet, inputs.get(0),
+      return new PhysBiRel(cluster, traitSet, inputs.get(0),
           inputs.get(1));
     }
 
@@ -210,9 +212,9 @@ class PlannerTests {
       return planner.getCostFactory().makeTinyCost();
     }
 
-    public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
+    public RelNode copy(RelOptCluster cluster, RelTraitSet traitSet, List<RelNode> inputs) {
       assert traitSet.contains(PHYS_CALLING_CONVENTION);
-      return new PhysSingleRel(getCluster(), sole(inputs));
+      return new PhysSingleRel(cluster, sole(inputs));
     }
   }
 

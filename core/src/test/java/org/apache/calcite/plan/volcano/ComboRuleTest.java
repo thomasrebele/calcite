@@ -85,9 +85,9 @@ class ComboRuleTest {
           .multiplyBy(1.0 / nodesBelowCount);
     }
 
-    public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
+    public RelNode copy(RelOptCluster cluster, RelTraitSet traitSet, List<RelNode> inputs) {
       assert traitSet.comprises(PHYS_CALLING_CONVENTION);
-      return new IntermediateNode(getCluster(), sole(inputs), nodesBelowCount);
+      return new IntermediateNode(cluster, sole(inputs), nodesBelowCount);
     }
   }
 

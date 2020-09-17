@@ -46,10 +46,10 @@ public class NoneConverter extends ConverterImpl {
   //~ Methods ----------------------------------------------------------------
 
 
-  public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
+  public RelNode copy(RelOptCluster cluster, RelTraitSet traitSet, List<RelNode> inputs) {
     assert traitSet.comprises(Convention.NONE);
     return new NoneConverter(
-        getCluster(),
+        cluster,
         sole(inputs));
   }
 

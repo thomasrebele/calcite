@@ -55,9 +55,12 @@ public class CassandraTableScan extends TableScan implements CassandraRel {
     assert getConvention() == CassandraRel.CONVENTION;
   }
 
-  @Override public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
+  @Override public RelNode copy(RelOptCluster cluster, RelTraitSet traitSet, List<RelNode> inputs) {
     assert inputs.isEmpty();
-    return this;
+    return cluster == this.getCluster()
+        ? this
+        : new CassandraTableScan(cluster, traitSet, this.table, this.cassandraTable,
+            this.projectRowType);
   }
 
   @Override public RelDataType deriveRowType() {

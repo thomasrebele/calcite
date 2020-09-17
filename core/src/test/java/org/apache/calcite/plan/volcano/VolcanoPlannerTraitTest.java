@@ -427,8 +427,9 @@ class VolcanoPlannerTraitTest {
           label);
     }
 
-    @Override public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-      return new NoneLeafRel(getCluster(), getLabel());
+    @Override public RelNode copy(RelOptCluster cluster, RelTraitSet traitSet,
+        List<RelNode> inputs) {
+      return new NoneLeafRel(cluster, getLabel());
     }
   }
 
@@ -493,9 +494,9 @@ class VolcanoPlannerTraitTest {
       super(cluster, traitSet, child);
     }
 
-    public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
+    public RelNode copy(RelOptCluster cluster, RelTraitSet traitSet, List<RelNode> inputs) {
       return new NoneSingleRel(
-          getCluster(),
+          cluster,
           traitSet,
           sole(inputs));
     }
@@ -522,10 +523,10 @@ class VolcanoPlannerTraitTest {
       return planner.getCostFactory().makeTinyCost();
     }
 
-    public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
+    public RelNode copy(RelOptCluster cluster, RelTraitSet traitSet, List<RelNode> inputs) {
       assert traitSet.comprises(EnumerableConvention.INSTANCE);
       return new IterSingleRel(
-          getCluster(),
+          cluster,
           sole(inputs));
     }
 
@@ -578,12 +579,13 @@ class VolcanoPlannerTraitTest {
           label);
     }
 
-    @Override public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-      return new NoneTinyLeafRel(getCluster(), getLabel());
+    @Override public RelNode copy(RelOptCluster cluster, RelTraitSet traitSet,
+        List<RelNode> inputs) {
+      return new NoneTinyLeafRel(cluster, getLabel());
     }
 
     public RelOptCost computeSelfCost(RelOptPlanner planner,
-                                      RelMetadataQuery mq) {
+        RelMetadataQuery mq) {
       return planner.getCostFactory().makeTinyCost();
     }
   }
@@ -727,9 +729,9 @@ class VolcanoPlannerTraitTest {
       this.toTrait = toTrait;
     }
 
-    public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
+    public RelNode copy(RelOptCluster cluster, RelTraitSet traitSet, List<RelNode> inputs) {
       return new AltTraitConverter(
-          getCluster(),
+          cluster,
           sole(inputs),
           toTrait);
     }
@@ -766,9 +768,9 @@ class VolcanoPlannerTraitTest {
           child);
     }
 
-    public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
+    public RelNode copy(RelOptCluster cluster, RelTraitSet traitSet, List<RelNode> inputs) {
       return new PhysToIteratorConverter(
-          getCluster(),
+          cluster,
           sole(inputs));
     }
   }
@@ -818,10 +820,10 @@ class VolcanoPlannerTraitTest {
       return planner.getCostFactory().makeZeroCost();
     }
 
-    public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
+    public RelNode copy(RelOptCluster cluster, RelTraitSet traitSet, List<RelNode> inputs) {
       assert traitSet.comprises(EnumerableConvention.INSTANCE);
       assert inputs.isEmpty();
-      return new IterMergedRel(getCluster(), this.getLabel());
+      return new IterMergedRel(cluster, this.getLabel());
     }
 
     @Override public Result implement(EnumerableRelImplementor implementor,

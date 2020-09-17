@@ -53,7 +53,7 @@ public final class LogicalDelta extends Delta {
     return new LogicalDelta(input.getCluster(), traitSet, input);
   }
 
-  @Override public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new LogicalDelta(getCluster(), traitSet, sole(inputs));
+  @Override public RelNode copy(RelOptCluster cluster, RelTraitSet traitSet, List<RelNode> inputs) {
+    return new LogicalDelta(cluster, traitSet, sole(inputs));
   }
 }

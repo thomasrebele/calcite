@@ -74,9 +74,9 @@ public class EnumerableInterpretable extends ConverterImpl
         cluster.traitSetOf(InterpretableConvention.INSTANCE), input);
   }
 
-  @Override public EnumerableInterpretable copy(RelTraitSet traitSet,
+  @Override public EnumerableInterpretable copy(RelOptCluster cluster, RelTraitSet traitSet,
       List<RelNode> inputs) {
-    return new EnumerableInterpretable(getCluster(), sole(inputs));
+    return new EnumerableInterpretable(cluster, sole(inputs));
   }
 
   public Node implement(final InterpreterImplementor implementor) {

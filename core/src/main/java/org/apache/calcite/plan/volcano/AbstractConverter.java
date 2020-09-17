@@ -60,9 +60,9 @@ public class AbstractConverter extends ConverterImpl {
   //~ Methods ----------------------------------------------------------------
 
 
-  public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
+  public RelNode copy(RelOptCluster cluster, RelTraitSet traitSet, List<RelNode> inputs) {
     return new AbstractConverter(
-        getCluster(),
+        cluster,
         (RelSubset) sole(inputs),
         traitDef,
         traitSet);

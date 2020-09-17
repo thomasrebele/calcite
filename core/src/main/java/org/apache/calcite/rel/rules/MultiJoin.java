@@ -116,10 +116,10 @@ public final class MultiJoin extends AbstractRelNode {
     recomputeDigest();
   }
 
-  @Override public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
+  @Override public RelNode copy(RelOptCluster cluster, RelTraitSet traitSet, List<RelNode> inputs) {
     assert traitSet.containsIfApplicable(Convention.NONE);
     return new MultiJoin(
-        getCluster(),
+        cluster,
         inputs,
         joinFilter,
         rowType,

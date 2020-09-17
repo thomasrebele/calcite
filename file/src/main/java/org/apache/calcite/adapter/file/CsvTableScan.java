@@ -59,9 +59,9 @@ public class CsvTableScan extends TableScan implements EnumerableRel {
     assert csvTable != null;
   }
 
-  @Override public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
+  @Override public RelNode copy(RelOptCluster cluster, RelTraitSet traitSet, List<RelNode> inputs) {
     assert inputs.isEmpty();
-    return new CsvTableScan(getCluster(), table, csvTable, fields);
+    return new CsvTableScan(cluster, table, csvTable, fields);
   }
 
   @Override public RelWriter explainTerms(RelWriter pw) {

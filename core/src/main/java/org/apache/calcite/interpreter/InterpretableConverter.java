@@ -39,8 +39,8 @@ public class InterpretableConverter extends ConverterImpl
     super(cluster, ConventionTraitDef.INSTANCE, traits, input);
   }
 
-  @Override public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new InterpretableConverter(getCluster(), traitSet, sole(inputs));
+  @Override public RelNode copy(RelOptCluster cluster, RelTraitSet traitSet, List<RelNode> inputs) {
+    return new InterpretableConverter(cluster, traitSet, sole(inputs));
   }
 
   public Class<Object[]> getElementType() {

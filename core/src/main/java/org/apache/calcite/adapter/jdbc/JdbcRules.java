@@ -487,8 +487,8 @@ public class JdbcRules {
       return planner.getCostFactory().makeCost(dRows, dCpu, dIo);
     }
 
-    public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-      return new JdbcCalc(getCluster(), traitSet, sole(inputs), program);
+    public RelNode copy(RelOptCluster cluster, RelTraitSet traitSet, List<RelNode> inputs) {
+      return new JdbcCalc(cluster, traitSet, sole(inputs), program);
     }
 
     public JdbcImplementor.Result implement(JdbcImplementor implementor) {
@@ -1037,9 +1037,10 @@ public class JdbcRules {
       return super.computeSelfCost(planner, mq).multiplyBy(.1);
     }
 
-    @Override public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
+    @Override public RelNode copy(RelOptCluster cluster, RelTraitSet traitSet,
+        List<RelNode> inputs) {
       return new JdbcTableModify(
-          getCluster(), traitSet, getTable(), getCatalogReader(),
+          cluster, traitSet, getTable(), getCatalogReader(),
           sole(inputs), getOperation(), getUpdateColumnList(),
           getSourceExpressionList(), isFlattened());
     }
@@ -1078,9 +1079,10 @@ public class JdbcRules {
       super(cluster, rowType, tuples, traitSet);
     }
 
-    @Override public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
+    @Override public RelNode copy(RelOptCluster cluster, RelTraitSet traitSet,
+        List<RelNode> inputs) {
       assert inputs.isEmpty();
-      return new JdbcValues(getCluster(), rowType, tuples, traitSet);
+      return new JdbcValues(cluster, rowType, tuples, traitSet);
     }
 
     public JdbcImplementor.Result implement(JdbcImplementor implementor) {

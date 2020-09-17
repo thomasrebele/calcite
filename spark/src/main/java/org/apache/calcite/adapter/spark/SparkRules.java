@@ -188,11 +188,11 @@ public abstract class SparkRules {
       super(cluster, rowType, tuples, traitSet);
     }
 
-    @Override public RelNode copy(
+    @Override public RelNode copy(RelOptCluster cluster,
         RelTraitSet traitSet, List<RelNode> inputs) {
       assert inputs.isEmpty();
       return new SparkValues(
-          getCluster(), rowType, tuples, traitSet);
+          cluster, rowType, tuples, traitSet);
     }
 
     public Result implementSpark(Implementor implementor) {
@@ -315,9 +315,9 @@ public abstract class SparkRules {
       return planner.getCostFactory().makeCost(dRows, dCpu, dIo);
     }
 
-    public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
+    public RelNode copy(RelOptCluster cluster, RelTraitSet traitSet, List<RelNode> inputs) {
       return new SparkCalc(
-          getCluster(),
+          cluster,
           traitSet,
           sole(inputs),
           program);

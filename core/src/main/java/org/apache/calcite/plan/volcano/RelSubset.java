@@ -212,13 +212,13 @@ public class RelSubset extends AbstractRelNode {
     return set.rel;
   }
 
-  public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
+  public RelNode copy(RelOptCluster cluster, RelTraitSet traitSet, List<RelNode> inputs) {
     if (inputs.isEmpty()) {
       final RelTraitSet traitSet1 = traitSet.simplify();
       if (traitSet1.equals(this.traitSet)) {
         return this;
       }
-      return set.getOrCreateSubset(getCluster(), traitSet1, isRequired());
+      return set.getOrCreateSubset(cluster, traitSet1, isRequired());
     }
     throw new UnsupportedOperationException();
   }

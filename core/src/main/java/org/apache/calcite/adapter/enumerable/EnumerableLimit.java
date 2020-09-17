@@ -73,11 +73,11 @@ public class EnumerableLimit extends SingleRel implements EnumerableRel {
     return new EnumerableLimit(cluster, traitSet, input, offset, fetch);
   }
 
-  @Override public EnumerableLimit copy(
+  @Override public EnumerableLimit copy(RelOptCluster cluster,
       RelTraitSet traitSet,
       List<RelNode> newInputs) {
     return new EnumerableLimit(
-        getCluster(),
+        cluster,
         traitSet,
         sole(newInputs),
         offset,

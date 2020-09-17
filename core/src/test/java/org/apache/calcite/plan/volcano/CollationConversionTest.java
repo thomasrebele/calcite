@@ -146,8 +146,9 @@ class CollationConversionTest {
       return planner.getCostFactory().makeTinyCost();
     }
 
-    @Override public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-      return new RootSingleRel(getCluster(), sole(inputs));
+    @Override public RelNode copy(RelOptCluster cluster, RelTraitSet traitSet,
+        List<RelNode> inputs) {
+      return new RootSingleRel(cluster, sole(inputs));
     }
   }
 
@@ -195,8 +196,8 @@ class CollationConversionTest {
       return planner.getCostFactory().makeTinyCost();
     }
 
-    public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-      return new LeafRel(getCluster(), label);
+    public RelNode copy(RelOptCluster cluster, RelTraitSet traitSet, List<RelNode> inputs) {
+      return new LeafRel(cluster, label);
     }
   }
 
@@ -221,9 +222,9 @@ class CollationConversionTest {
           input);
     }
 
-    public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
+    public RelNode copy(RelOptCluster cluster, RelTraitSet traitSet, List<RelNode> inputs) {
       assert traitSet.comprises(Convention.NONE, LEAF_COLLATION);
-      return new NoneSingleRel(getCluster(), sole(inputs));
+      return new NoneSingleRel(cluster, sole(inputs));
     }
   }
 

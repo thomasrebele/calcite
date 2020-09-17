@@ -47,9 +47,9 @@ public class PigToEnumerableConverter
     super(cluster, ConventionTraitDef.INSTANCE, traits, input);
   }
 
-  @Override public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
+  @Override public RelNode copy(RelOptCluster cluster, RelTraitSet traitSet, List<RelNode> inputs) {
     return new PigToEnumerableConverter(
-        getCluster(), traitSet, sole(inputs));
+        cluster, traitSet, sole(inputs));
   }
 
   /**

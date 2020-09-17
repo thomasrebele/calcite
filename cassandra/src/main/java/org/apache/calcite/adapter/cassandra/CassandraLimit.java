@@ -50,8 +50,9 @@ public class CassandraLimit extends SingleRel implements CassandraRel {
     return planner.getCostFactory().makeZeroCost();
   }
 
-  @Override public CassandraLimit copy(RelTraitSet traitSet, List<RelNode> newInputs) {
-    return new CassandraLimit(getCluster(), traitSet, sole(newInputs), offset, fetch);
+  @Override public CassandraLimit copy(RelOptCluster cluster, RelTraitSet traitSet,
+      List<RelNode> newInputs) {
+    return new CassandraLimit(cluster, traitSet, sole(newInputs), offset, fetch);
   }
 
   public void implement(Implementor implementor) {

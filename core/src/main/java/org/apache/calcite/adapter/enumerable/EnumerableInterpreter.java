@@ -78,8 +78,8 @@ public class EnumerableInterpreter extends SingleRel
     return super.computeSelfCost(planner, mq).multiplyBy(factor);
   }
 
-  @Override public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new EnumerableInterpreter(getCluster(), traitSet, sole(inputs),
+  @Override public RelNode copy(RelOptCluster cluster, RelTraitSet traitSet, List<RelNode> inputs) {
+    return new EnumerableInterpreter(cluster, traitSet, sole(inputs),
         factor);
   }
 

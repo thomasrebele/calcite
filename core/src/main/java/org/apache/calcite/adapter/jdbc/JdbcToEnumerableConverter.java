@@ -72,9 +72,9 @@ public class JdbcToEnumerableConverter
     super(cluster, ConventionTraitDef.INSTANCE, traits, input);
   }
 
-  @Override public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
+  @Override public RelNode copy(RelOptCluster cluster, RelTraitSet traitSet, List<RelNode> inputs) {
     return new JdbcToEnumerableConverter(
-        getCluster(), traitSet, sole(inputs));
+        cluster, traitSet, sole(inputs));
   }
 
   @Override public RelOptCost computeSelfCost(RelOptPlanner planner,

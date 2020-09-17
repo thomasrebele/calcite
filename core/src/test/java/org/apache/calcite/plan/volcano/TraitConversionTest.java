@@ -142,8 +142,9 @@ class TraitConversionTest {
       return planner.getCostFactory().makeTinyCost();
     }
 
-    @Override public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-      return new RandomSingleRel(getCluster(), sole(inputs));
+    @Override public RelNode copy(RelOptCluster cluster, RelTraitSet traitSet,
+        List<RelNode> inputs) {
+      return new RandomSingleRel(cluster, sole(inputs));
     }
   }
 
@@ -192,8 +193,9 @@ class TraitConversionTest {
       return planner.getCostFactory().makeTinyCost();
     }
 
-    @Override public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-      return new SingletonLeafRel(getCluster(), label);
+    @Override public RelNode copy(RelOptCluster cluster, RelTraitSet traitSet,
+        List<RelNode> inputs) {
+      return new SingletonLeafRel(cluster, label);
     }
   }
 
@@ -211,8 +213,9 @@ class TraitConversionTest {
       return planner.getCostFactory().makeTinyCost();
     }
 
-    @Override public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-      return new BridgeRel(getCluster(), sole(inputs));
+    @Override public RelNode copy(RelOptCluster cluster, RelTraitSet traitSet,
+        List<RelNode> inputs) {
+      return new BridgeRel(cluster, sole(inputs));
     }
   }
 
@@ -299,9 +302,10 @@ class TraitConversionTest {
       super(cluster, cluster.traitSetOf(Convention.NONE), input);
     }
 
-    @Override public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
+    @Override public RelNode copy(RelOptCluster cluster, RelTraitSet traitSet,
+        List<RelNode> inputs) {
       assert traitSet.comprises(Convention.NONE, SIMPLE_DISTRIBUTION_ANY);
-      return new NoneSingleRel(getCluster(), sole(inputs));
+      return new NoneSingleRel(cluster, sole(inputs));
     }
   }
 }

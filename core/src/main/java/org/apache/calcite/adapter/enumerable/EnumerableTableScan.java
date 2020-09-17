@@ -313,8 +313,8 @@ public class EnumerableTableScan
     return false;
   }
 
-  @Override public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new EnumerableTableScan(getCluster(), traitSet, table, elementType);
+  @Override public RelNode copy(RelOptCluster cluster, RelTraitSet traitSet, List<RelNode> inputs) {
+    return new EnumerableTableScan(cluster, traitSet, table, elementType);
   }
 
   public Result implement(EnumerableRelImplementor implementor, Prefer pref) {

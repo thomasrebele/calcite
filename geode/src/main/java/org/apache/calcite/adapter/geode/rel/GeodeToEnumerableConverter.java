@@ -59,9 +59,9 @@ public class GeodeToEnumerableConverter extends ConverterImpl implements Enumera
     super(cluster, ConventionTraitDef.INSTANCE, traitSet, input);
   }
 
-  @Override public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
+  @Override public RelNode copy(RelOptCluster cluster, RelTraitSet traitSet, List<RelNode> inputs) {
     return new GeodeToEnumerableConverter(
-        getCluster(), traitSet, sole(inputs));
+        cluster, traitSet, sole(inputs));
   }
 
   @Override public RelOptCost computeSelfCost(RelOptPlanner planner,

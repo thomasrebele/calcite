@@ -50,9 +50,9 @@ public class EnumerableBindable extends ConverterImpl implements BindableRel {
         cluster.traitSetOf(BindableConvention.INSTANCE), input);
   }
 
-  @Override public EnumerableBindable copy(RelTraitSet traitSet,
+  @Override public EnumerableBindable copy(RelOptCluster cluster, RelTraitSet traitSet,
       List<RelNode> inputs) {
-    return new EnumerableBindable(getCluster(), sole(inputs));
+    return new EnumerableBindable(cluster, sole(inputs));
   }
 
   public Class<Object[]> getElementType() {

@@ -75,10 +75,10 @@ public final class LogicalWindow extends Window {
     super(cluster, traitSet, input, constants, rowType, groups);
   }
 
-  @Override public LogicalWindow copy(RelTraitSet traitSet,
+  @Override public LogicalWindow copy(RelOptCluster cluster, RelTraitSet traitSet,
       List<RelNode> inputs) {
-    return new LogicalWindow(getCluster(), traitSet, sole(inputs), constants,
-      rowType, groups);
+    return new LogicalWindow(cluster, traitSet, sole(inputs), constants,
+        rowType, groups);
   }
 
   /**

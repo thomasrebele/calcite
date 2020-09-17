@@ -57,11 +57,11 @@ public class LogicalRepeatUnion extends RepeatUnion {
 
   //~ Methods ----------------------------------------------------------------
 
-  @Override public LogicalRepeatUnion copy(RelTraitSet traitSet,
+  @Override public LogicalRepeatUnion copy(RelOptCluster cluster, RelTraitSet traitSet,
       List<RelNode> inputs) {
     assert traitSet.containsIfApplicable(Convention.NONE);
     assert inputs.size() == 2;
-    return new LogicalRepeatUnion(getCluster(), traitSet,
+    return new LogicalRepeatUnion(cluster, traitSet,
         inputs.get(0), inputs.get(1), all, iterationLimit);
   }
 }

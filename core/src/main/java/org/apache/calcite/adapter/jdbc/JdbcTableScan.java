@@ -42,10 +42,10 @@ public class JdbcTableScan extends TableScan implements JdbcRel {
     this.jdbcTable = Objects.requireNonNull(jdbcTable);
   }
 
-  @Override public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
+  @Override public RelNode copy(RelOptCluster cluster, RelTraitSet traitSet, List<RelNode> inputs) {
     assert inputs.isEmpty();
     return new JdbcTableScan(
-        getCluster(), table, jdbcTable, (JdbcConvention) getConvention());
+        cluster, table, jdbcTable, (JdbcConvention) getConvention());
   }
 
   public JdbcImplementor.Result implement(JdbcImplementor implementor) {

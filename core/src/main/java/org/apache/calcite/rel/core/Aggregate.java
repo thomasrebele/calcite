@@ -222,7 +222,7 @@ public abstract class Aggregate extends SingleRel implements Hintable {
 
   //~ Methods ----------------------------------------------------------------
 
-  @Override public final RelNode copy(RelTraitSet traitSet,
+  @Override public final RelNode copy(RelOptCluster cluster, RelTraitSet traitSet,
       List<RelNode> inputs) {
     return copy(traitSet, sole(inputs), groupSet, groupSets, aggCalls);
   }

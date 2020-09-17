@@ -96,8 +96,8 @@ public class EnumerableMatch extends Match implements EnumerableRel {
         allRows, partitionKeys, orderKeys, interval);
   }
 
-  @Override public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new EnumerableMatch(getCluster(), traitSet, inputs.get(0), rowType,
+  @Override public RelNode copy(RelOptCluster cluster, RelTraitSet traitSet, List<RelNode> inputs) {
+    return new EnumerableMatch(cluster, traitSet, inputs.get(0), rowType,
         pattern, strictStart, strictEnd, patternDefinitions, measures, after,
         subsets, allRows, partitionKeys, orderKeys, interval);
   }

@@ -83,10 +83,10 @@ public final class LogicalTableModify extends TableModify {
 
   //~ Methods ----------------------------------------------------------------
 
-  @Override public LogicalTableModify copy(RelTraitSet traitSet,
+  @Override public LogicalTableModify copy(RelOptCluster cluster, RelTraitSet traitSet,
       List<RelNode> inputs) {
     assert traitSet.containsIfApplicable(Convention.NONE);
-    return new LogicalTableModify(getCluster(), traitSet, table, catalogReader,
+    return new LogicalTableModify(cluster, traitSet, table, catalogReader,
         sole(inputs), getOperation(), getUpdateColumnList(),
         getSourceExpressionList(), isFlattened());
   }

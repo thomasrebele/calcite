@@ -18,6 +18,7 @@ package org.apache.calcite.rel;
 
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelDigest;
+import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptNode;
 import org.apache.calcite.plan.RelOptPlanner;
@@ -349,9 +350,19 @@ public interface RelNode extends RelOptNode, Cloneable {
    * @return Copy of this relational expression, substituting traits and
    * inputs
    */
-  RelNode copy(
+  default RelNode copy(
       RelTraitSet traitSet,
-      List<RelNode> inputs);
+      List<RelNode> inputs) {
+    return this.copy(this.getCluster(), traitSet, inputs);
+  }
+
+  default RelNode copy(
+      RelOptCluster cluster,
+      RelTraitSet traitSet,
+      List<RelNode> inputs
+  ) {
+    throw new UnsupportedOperationException();
+  }
 
   /**
    * Registers any special rules specific to this kind of relational

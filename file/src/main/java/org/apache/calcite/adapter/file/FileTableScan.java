@@ -58,9 +58,9 @@ class FileTableScan extends TableScan implements EnumerableRel {
     assert webTable != null;
   }
 
-  @Override public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
+  @Override public RelNode copy(RelOptCluster cluster, RelTraitSet traitSet, List<RelNode> inputs) {
     assert inputs.isEmpty();
-    return new FileTableScan(getCluster(), table, webTable, fields);
+    return new FileTableScan(cluster, table, webTable, fields);
   }
 
   @Override public RelWriter explainTerms(RelWriter pw) {

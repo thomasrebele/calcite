@@ -1299,8 +1299,9 @@ class PlannerTest {
       super(cluster, cluster.traitSetOf(jdbcConvention), ImmutableList.of(), table);
     }
 
-    @Override public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-      return new MockJdbcTableScan(getCluster(), table,
+    @Override public RelNode copy(RelOptCluster cluster, RelTraitSet traitSet,
+        List<RelNode> inputs) {
+      return new MockJdbcTableScan(cluster, table,
           (JdbcConvention) getConvention());
     }
 

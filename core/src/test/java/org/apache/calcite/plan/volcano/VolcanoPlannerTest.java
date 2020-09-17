@@ -697,10 +697,10 @@ class VolcanoPlannerTest {
           child);
     }
 
-    public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
+    public RelNode copy(RelOptCluster cluster, RelTraitSet traitSet, List<RelNode> inputs) {
       assert traitSet.comprises(EnumerableConvention.INSTANCE);
       return new PhysToIteratorConverter(
-          getCluster(),
+          cluster,
           sole(inputs));
     }
   }

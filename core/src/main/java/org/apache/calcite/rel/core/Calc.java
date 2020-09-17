@@ -101,8 +101,9 @@ public abstract class Calc extends SingleRel implements Hintable {
 
   //~ Methods ----------------------------------------------------------------
 
-  @Override public final Calc copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return copy(traitSet, sole(inputs), program);
+  @Override public final Calc copy(RelOptCluster cluster, RelTraitSet traitSet,
+      List<RelNode> inputs) {
+    return copy(cluster, traitSet, sole(inputs), program);
   }
 
   /**

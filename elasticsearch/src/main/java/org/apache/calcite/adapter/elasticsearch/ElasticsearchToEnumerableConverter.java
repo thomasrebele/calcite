@@ -50,8 +50,8 @@ public class ElasticsearchToEnumerableConverter extends ConverterImpl implements
     super(cluster, ConventionTraitDef.INSTANCE, traits, input);
   }
 
-  @Override public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new ElasticsearchToEnumerableConverter(getCluster(), traitSet, sole(inputs));
+  @Override public RelNode copy(RelOptCluster cluster, RelTraitSet traitSet, List<RelNode> inputs) {
+    return new ElasticsearchToEnumerableConverter(cluster, traitSet, sole(inputs));
   }
 
   @Override public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {

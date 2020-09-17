@@ -102,8 +102,8 @@ public class LogicalMatch extends Match {
 
   //~ Methods ------------------------------------------------------
 
-  @Override public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new LogicalMatch(getCluster(), traitSet, inputs.get(0), rowType,
+  @Override public RelNode copy(RelOptCluster cluster, RelTraitSet traitSet, List<RelNode> inputs) {
+    return new LogicalMatch(cluster, traitSet, inputs.get(0), rowType,
         pattern, strictStart, strictEnd, patternDefinitions, measures, after,
         subsets, allRows, partitionKeys, orderKeys, interval);
   }

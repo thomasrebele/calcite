@@ -57,9 +57,9 @@ public class EnumerableTableModify extends TableModify
     }
   }
 
-  @Override public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
+  @Override public RelNode copy(RelOptCluster cluster, RelTraitSet traitSet, List<RelNode> inputs) {
     return new EnumerableTableModify(
-        getCluster(),
+        cluster,
         traitSet,
         getTable(),
         getCatalogReader(),
