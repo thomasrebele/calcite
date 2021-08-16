@@ -45,6 +45,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
@@ -128,13 +129,10 @@ public class VolcanoRuleMatchVisualizer {
         Set<String> relInputs = nodeInputs.computeIfAbsent(nodeID, k -> new TreeSet<>());
         if (rel instanceof RelSubset) {
           RelSubset relSubset = (RelSubset) rel;
-          relSubset.getRelList().stream()
-              .filter(input -> input.getTraitSet().equals(relSubset.getTraitSet()))
-              .forEach(input -> relInputs.add(String.valueOf(input.getId())));
-          relSubset.set.subsets.stream()
+          relSubset.getRels().forEach(input -> relInputs.add(String.valueOf(input.getId())));
+          relSubset.getSubsetsSatisfyingThis()
               .filter(other -> !other.equals(relSubset))
-              .filter(other -> other.getTraitSet().satisfies(relSubset.getTraitSet()))
-              .forEach(other -> relInputs.add(String.valueOf(other.getId())));
+              .forEach(input -> relInputs.add(String.valueOf(input.getId())));
         } else {
           rel.getInputs().forEach(input -> relInputs.add(String.valueOf(input.getId())));
         }
