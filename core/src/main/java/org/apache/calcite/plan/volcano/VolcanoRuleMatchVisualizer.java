@@ -19,6 +19,7 @@ package org.apache.calcite.plan.volcano;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.tools.visualizer.InputExcludedRelWriter;
 import org.apache.calcite.tools.visualizer.VisualizerNodeInfo;
 import org.apache.calcite.tools.visualizer.VisualizerRuleMatchInfo;
@@ -201,17 +202,17 @@ public class VolcanoRuleMatchVisualizer {
 
   private String getJsonStringResult() {
     try {
+      RelNode root = volcanoPlanner.getRoot();
+      if (root == null) {
+        throw new RuntimeException("volcano planner root is null");
+      }
+      RelMetadataQuery mq = root.getCluster().getMetadataQuery();
+
       Map<String, VisualizerNodeInfo> nodeInfoMap = new TreeMap<>();
-      for (String nodeID : allNodes.keySet()) {
-        RelNode relNode = allNodes.get(nodeID);
-        RelNode root = volcanoPlanner.getRoot();
-        if (root == null) {
-          throw new RuntimeException("volcano planner root is null");
-        }
-        RelOptCluster cluster = root.getCluster();
-        RelOptCost cost = volcanoPlanner.getCost(relNode, cluster.getMetadataQuery());
-        Double rowCount =
-            relNode.getCluster().getMetadataQuery().getRowCount(relNode);
+      for (Map.Entry<String, RelNode> entry : allNodes.entrySet()) {
+        RelNode relNode = entry.getValue();
+        RelOptCost cost = volcanoPlanner.getCost(relNode, mq);
+        Double rowCount = mq.getRowCount(relNode);
 
         VisualizerNodeInfo nodeInfo;
         if (relNode instanceof RelSubset) {
@@ -235,7 +236,7 @@ public class VolcanoRuleMatchVisualizer {
               rowCount);
         }
 
-        nodeInfoMap.put(nodeID, nodeInfo);
+        nodeInfoMap.put(entry.getKey(), nodeInfo);
       }
 
       LinkedHashMap<String, Object> data = new LinkedHashMap<>();
