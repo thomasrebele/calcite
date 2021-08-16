@@ -23,6 +23,7 @@ import org.apache.calcite.tools.visualizer.InputExcludedRelWriter;
 import org.apache.calcite.tools.visualizer.VisualizerNodeInfo;
 import org.apache.calcite.tools.visualizer.VisualizerRuleMatchInfo;
 
+import org.apache.calcite.tools.visualizer.VolcanoRuleMatchVisualizerListener;
 import org.apache.commons.io.IOUtils;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -60,17 +61,13 @@ import static java.util.stream.Collectors.joining;
  * Then writes the output to a file after the optimization ends.
  *
  * <pre>
- * // construct the visualizer and attach a listener to VolcanoPlanner
- * VolcanoRuleMatchVisualizerListener visualizerListener =
- *   new VolcanoRuleMatchVisualizerListener(volcanoPlanner);
- * volcanoPlanner.addListener(visualizerListener);
+ * // construct the visualizer. This attaches a listener to VolcanoPlanner
+ * VolcanoRuleMatchVisualizer visualizer = new VolcanoRuleMatchVisualizer(planner);
  *
  * volcanoPlanner.findBestExpr();
  *
- * // after the optimization, adds the final best plan
- * visualizerListener.getVisualizer().addFinalPlan();
  * // writes the output to files
- * visualizerListener.getVisualizer().writeToFile(outputDirectory, "");
+ * visualizer.writeToFile(outputDirectory, "");
  * </pre>
  */
 public class VolcanoRuleMatchVisualizer {
@@ -91,6 +88,7 @@ public class VolcanoRuleMatchVisualizer {
 
   public VolcanoRuleMatchVisualizer(VolcanoPlanner volcanoPlanner) {
     this.volcanoPlanner = volcanoPlanner;
+    this.volcanoPlanner.addListener(new VolcanoRuleMatchVisualizerListener(this));
   }
 
   public void addRuleMatch(String ruleCallID, Collection<? extends RelNode> matchedRels) {
@@ -172,8 +170,10 @@ public class VolcanoRuleMatchVisualizer {
   /**
    * Add a final plan to the variable.
    */
-  public void addFinalPlan() {
-    assert !ruleMatchSequence.contains("FINAL");
+  private void addFinalPlan() {
+    if (ruleMatchSequence.contains("FINAL")) {
+      return;
+    }
 
     Set<RelNode> finalPlanNodes = new HashSet<>();
     Deque<RelSubset> subsetsToVisit = new ArrayDeque<>();
@@ -268,6 +268,7 @@ public class VolcanoRuleMatchVisualizer {
   }
 
   public void writeToFile(String templateDirectory, String outputDirectory, String suffix) {
+    addFinalPlan();
     try {
       String templatePath = Paths.get(templateDirectory).resolve("viz-template.html").toString();
       assert templatePath != null;

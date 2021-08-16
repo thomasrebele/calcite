@@ -36,8 +36,8 @@ public class VolcanoRuleMatchVisualizerListener implements RelOptListener {
   private String latestRuleID = "";
   private int latestRuleTransformCount = 1;
 
-  public VolcanoRuleMatchVisualizerListener(VolcanoPlanner volcanoPlanner) {
-    visualizer = new VolcanoRuleMatchVisualizer(volcanoPlanner);
+  public VolcanoRuleMatchVisualizerListener(VolcanoRuleMatchVisualizer visualizer) {
+    this.visualizer = visualizer;
   }
 
   /**
