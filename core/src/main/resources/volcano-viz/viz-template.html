@@ -180,15 +180,10 @@ limitations under the License.
 
         var ruleIndex = ruleMatchSequence.indexOf(currentRuleID);
 
-        document.getElementById("prev-button").disabled = false;
-        document.getElementById("next-button").disabled = false;
-
-        if (ruleIndex === 0) {
-            document.getElementById("prev-button").disabled = true;
-        }
-        if (ruleIndex === ruleMatchSequence.length - 1) {
-            document.getElementById("next-button").disabled = true;
-        }
+        var isFirst = ruleIndex === 0;
+        document.getElementById("prev-button").disabled = isFirst;
+        var isLast = ruleIndex === ruleMatchSequence.length - 1;
+        document.getElementById("next-button").disabled = isLast;
 
         createGraph(ruleMatchID);
     }
