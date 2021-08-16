@@ -30,12 +30,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Charsets;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Deque;
@@ -174,8 +176,10 @@ public class VolcanoRuleMatchVisualizer {
     assert !ruleMatchSequence.contains("FINAL");
 
     Set<RelNode> finalPlanNodes = new HashSet<>();
-    Deque<RelSubset> subsetsToVisit = new LinkedList<>();
-    subsetsToVisit.add((RelSubset) volcanoPlanner.getRoot());
+    Deque<RelSubset> subsetsToVisit = new ArrayDeque<>();
+    RelSubset root = (RelSubset) volcanoPlanner.getRoot();
+    assert root != null;
+    subsetsToVisit.add(root);
 
     RelSubset subset;
     while ((subset = subsetsToVisit.poll()) != null) {
@@ -266,8 +270,10 @@ public class VolcanoRuleMatchVisualizer {
   public void writeToFile(String templateDirectory, String outputDirectory, String suffix) {
     try {
       String templatePath = Paths.get(templateDirectory).resolve("viz-template.html").toString();
-      String htmlTemplate = IOUtils.toString(getClass().getResourceAsStream(templatePath),
-          StandardCharsets.UTF_8);
+      assert templatePath != null;
+      InputStream resourceAsStream = getClass().getResourceAsStream(templatePath);
+      assert resourceAsStream != null;
+      String htmlTemplate = IOUtils.toString(resourceAsStream, StandardCharsets.UTF_8);
 
       String htmlFileName = "volcano-viz" + suffix + ".html";
       String dataFileName = "volcano-viz-data" + suffix + ".js";

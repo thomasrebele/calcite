@@ -42,14 +42,17 @@ import java.util.Map;
  */
 public class InputExcludedRelWriter implements RelWriter {
 
-  private final Map<String, Object> values = new LinkedHashMap<>();
+  private final Map<String, @Nullable Object> values = new LinkedHashMap<>();
 
   public InputExcludedRelWriter() {
   }
 
 
-  @Override public void explain(RelNode rel, List<Pair<String, Object>> valueList) {
-    valueList.forEach(pair -> this.values.put(pair.left, pair.right));
+  @Override public void explain(RelNode rel, List<Pair<String, @Nullable Object>> valueList) {
+    valueList.forEach(pair -> {
+      assert pair.left != null;
+      this.values.put(pair.left, pair.right);
+    });
   }
 
   @Override public SqlExplainLevel getDetailLevel() {
