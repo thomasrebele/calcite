@@ -22,7 +22,6 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.tools.visualizer.InputExcludedRelWriter;
 import org.apache.calcite.tools.visualizer.VisualizerNodeInfo;
 import org.apache.calcite.tools.visualizer.VisualizerRuleMatchInfo;
-
 import org.apache.calcite.tools.visualizer.VolcanoRuleMatchVisualizerListener;
 import org.apache.commons.io.IOUtils;
 
@@ -42,12 +41,13 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Deque;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedList;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -77,14 +77,14 @@ public class VolcanoRuleMatchVisualizer {
   // a sequence of ruleMatch ID to represent the order of rule match
   List<String> ruleMatchSequence = new ArrayList<>();
   // map of ruleMatch ID and the info, including the state snapshot at the time of ruleMatch
-  Map<String, VisualizerRuleMatchInfo> ruleInfoMap = new HashMap<>();
+  Map<String, VisualizerRuleMatchInfo> ruleInfoMap = new TreeMap<>();
   // map of nodeID to the ruleID it's first added
-  Map<String, String> nodeAddedInRule = new HashMap<>();
+  Map<String, String> nodeAddedInRule = new TreeMap<>();
 
   // a map of relNode ID to the actual RelNode object
   // contains all the relNodes appear during the optimization
   // all RelNode are immutable in Calcite, therefore only new nodes will be added
-  Map<String, RelNode> allNodes = new HashMap<>();
+  Map<String, RelNode> allNodes = new TreeMap<>();
 
   public VolcanoRuleMatchVisualizer(VolcanoPlanner volcanoPlanner) {
     this.volcanoPlanner = volcanoPlanner;
@@ -96,13 +96,13 @@ public class VolcanoRuleMatchVisualizer {
     // store the current state snapshot
     // nodes contained in the sets
     // and inputs of relNodes (and relSubsets)
-    Map<String, String> setLabels = new HashMap<>();
-    Map<String, String> setOriginalRel = new HashMap<>();
-    Map<String, Set<String>> nodesInSet = new HashMap<>();
-    Map<String, Set<String>> nodeInputs = new HashMap<>();
+    Map<String, String> setLabels = new TreeMap<>();
+    Map<String, String> setOriginalRel = new TreeMap<>();
+    Map<String, Set<String>> nodesInSet = new TreeMap<>();
+    Map<String, Set<String>> nodeInputs = new TreeMap<>();
 
     // newNodes appeared after this ruleCall
-    Set<String> newNodes = new HashSet<>();
+    Set<String> newNodes = new TreeSet<>();
 
     // populate current snapshot, and fill in the allNodes map
     volcanoPlanner.allSets.forEach(set -> {
@@ -111,7 +111,7 @@ public class VolcanoRuleMatchVisualizer {
       setLabels.put(setID, setLabel);
       setOriginalRel.put(setID, set.rel == null ? "" : String.valueOf(set.rel.getId()));
 
-      nodesInSet.put(setID, nodesInSet.getOrDefault(setID, new HashSet<>()));
+      nodesInSet.put(setID, nodesInSet.getOrDefault(setID, new TreeSet<>()));
 
       Consumer<RelNode> addNode = rel -> {
         String nodeID = String.valueOf(rel.getId());
@@ -125,19 +125,18 @@ public class VolcanoRuleMatchVisualizer {
 
       Consumer<RelNode> addLink = rel -> {
         String nodeID = String.valueOf(rel.getId());
-        nodeInputs.put(nodeID, new HashSet<>());
+        Set<String> relInputs = nodeInputs.computeIfAbsent(nodeID, k -> new TreeSet<>());
         if (rel instanceof RelSubset) {
           RelSubset relSubset = (RelSubset) rel;
           relSubset.getRelList().stream()
               .filter(input -> input.getTraitSet().equals(relSubset.getTraitSet()))
-              .forEach(input -> nodeInputs.get(nodeID).add(String.valueOf(input.getId())));
+              .forEach(input -> relInputs.add(String.valueOf(input.getId())));
           relSubset.set.subsets.stream()
               .filter(other -> !other.equals(relSubset))
               .filter(other -> other.getTraitSet().satisfies(relSubset.getTraitSet()))
-              .forEach(other -> nodeInputs.get(nodeID).add(String.valueOf(other.getId())));
+              .forEach(other -> relInputs.add(String.valueOf(other.getId())));
         } else {
-          rel.getInputs().forEach(input -> nodeInputs.get(nodeID)
-              .add(String.valueOf(input.getId())));
+          rel.getInputs().forEach(input -> relInputs.add(String.valueOf(input.getId())));
         }
       };
 
@@ -150,10 +149,10 @@ public class VolcanoRuleMatchVisualizer {
     // get the matched nodes of this rule
     Set<String> matchedNodeIDs = matchedRels.stream()
         .map(rel -> String.valueOf(rel.getId()))
-        .collect(Collectors.toSet());
+        .collect(Collectors.toCollection(() -> new TreeSet<>()));
 
     // get importance 0 rels as of right now
-    Set<String> importanceZeroNodes = new HashSet<>();
+    Set<String> importanceZeroNodes = new TreeSet<>();
     volcanoPlanner.prunedNodes
         .forEach(rel -> importanceZeroNodes.add(Integer.toString(rel.getId())));
 
@@ -175,7 +174,7 @@ public class VolcanoRuleMatchVisualizer {
       return;
     }
 
-    Set<RelNode> finalPlanNodes = new HashSet<>();
+    Set<RelNode> finalPlanNodes = new LinkedHashSet<>();
     Deque<RelSubset> subsetsToVisit = new ArrayDeque<>();
     RelSubset root = (RelSubset) volcanoPlanner.getRoot();
     assert root != null;
@@ -204,7 +203,7 @@ public class VolcanoRuleMatchVisualizer {
 
   private String getJsonStringResult() {
     try {
-      Map<String, VisualizerNodeInfo> nodeInfoMap = new HashMap<>();
+      Map<String, VisualizerNodeInfo> nodeInfoMap = new TreeMap<>();
       for (String nodeID : allNodes.keySet()) {
         RelNode relNode = allNodes.get(nodeID);
         RelNode root = volcanoPlanner.getRoot();
@@ -241,14 +240,14 @@ public class VolcanoRuleMatchVisualizer {
         nodeInfoMap.put(nodeID, nodeInfo);
       }
 
-      HashMap<String, Object> data = new HashMap<>();
+      LinkedHashMap<String, Object> data = new LinkedHashMap<>();
       data.put("allNodes", nodeInfoMap);
       data.put("ruleMatchSequence", ruleMatchSequence);
       data.put("ruleMatchInfoMap", ruleInfoMap);
       data.put("nodeAddedInRule", nodeAddedInRule);
 
       ObjectMapper objectMapper = new ObjectMapper();
-      return objectMapper.writeValueAsString(data);
+      return objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(data);
     } catch (JsonProcessingException e) {
       throw new RuntimeException(e);
     }
