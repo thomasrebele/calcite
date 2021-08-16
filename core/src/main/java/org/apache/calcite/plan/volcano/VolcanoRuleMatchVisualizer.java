@@ -271,7 +271,7 @@ public class VolcanoRuleMatchVisualizer {
     try {
       String templatePath = Paths.get(templateDirectory).resolve("viz-template.html").toString();
       assert templatePath != null;
-      InputStream resourceAsStream = getClass().getResourceAsStream(templatePath);
+      InputStream resourceAsStream = getClass().getClassLoader().getResourceAsStream(templatePath);
       assert resourceAsStream != null;
       String htmlTemplate = IOUtils.toString(resourceAsStream, StandardCharsets.UTF_8);
 
