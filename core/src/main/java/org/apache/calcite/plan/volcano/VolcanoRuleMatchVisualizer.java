@@ -16,7 +16,6 @@
  */
 package org.apache.calcite.plan.volcano;
 
-import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
@@ -24,6 +23,7 @@ import org.apache.calcite.tools.visualizer.InputExcludedRelWriter;
 import org.apache.calcite.tools.visualizer.VisualizerNodeInfo;
 import org.apache.calcite.tools.visualizer.VisualizerRuleMatchInfo;
 import org.apache.calcite.tools.visualizer.VolcanoRuleMatchVisualizerListener;
+
 import org.apache.commons.io.IOUtils;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -46,7 +46,6 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
