@@ -62,8 +62,8 @@ import static java.util.stream.Collectors.joining;
  * Then writes the output to a file after the optimization ends.
  *
  * <pre>
- * // construct the visualizer. This attaches a listener to VolcanoPlanner
- * VolcanoRuleMatchVisualizer visualizer = new VolcanoRuleMatchVisualizer(planner);
+ * // create the visualizer. This attaches a listener to VolcanoPlanner
+ * VolcanoRuleMatchVisualizer visualizer = VolcanoRuleMatchVisualizer.createAndAttach(planner);
  *
  * volcanoPlanner.findBestExpr();
  *
@@ -72,6 +72,13 @@ import static java.util.stream.Collectors.joining;
  * </pre>
  */
 public class VolcanoRuleMatchVisualizer {
+
+  public static VolcanoRuleMatchVisualizer createAndAttach(VolcanoPlanner volcanoPlanner) {
+    VolcanoRuleMatchVisualizer vis = new VolcanoRuleMatchVisualizer(volcanoPlanner);
+    // add listener outside of the constructor to make checker-framework happy
+    volcanoPlanner.addListener(new VolcanoRuleMatchVisualizerListener(vis));
+    return vis;
+  }
 
   VolcanoPlanner volcanoPlanner;
 
@@ -87,9 +94,8 @@ public class VolcanoRuleMatchVisualizer {
   // all RelNode are immutable in Calcite, therefore only new nodes will be added
   Map<String, RelNode> allNodes = new TreeMap<>();
 
-  public VolcanoRuleMatchVisualizer(VolcanoPlanner volcanoPlanner) {
+  private VolcanoRuleMatchVisualizer(VolcanoPlanner volcanoPlanner) {
     this.volcanoPlanner = volcanoPlanner;
-    this.volcanoPlanner.addListener(new VolcanoRuleMatchVisualizerListener(this));
   }
 
   public void addRuleMatch(String ruleCallID, Collection<? extends RelNode> matchedRels) {
@@ -269,7 +275,9 @@ public class VolcanoRuleMatchVisualizer {
     try {
       String templatePath = Paths.get(templateDirectory).resolve("viz-template.html").toString();
       assert templatePath != null;
-      InputStream resourceAsStream = getClass().getClassLoader().getResourceAsStream(templatePath);
+      ClassLoader cl = getClass().getClassLoader();
+      assert cl != null;
+      InputStream resourceAsStream = cl.getResourceAsStream(templatePath);
       assert resourceAsStream != null;
       String htmlTemplate = IOUtils.toString(resourceAsStream, StandardCharsets.UTF_8);
 
