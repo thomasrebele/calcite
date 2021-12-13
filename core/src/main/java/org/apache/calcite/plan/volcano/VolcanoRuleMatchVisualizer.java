@@ -17,12 +17,14 @@
 package org.apache.calcite.plan.volcano;
 
 import org.apache.calcite.plan.RelOptCost;
+import org.apache.calcite.plan.RelOptListener;
+import org.apache.calcite.plan.RelOptPlanner;
+import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.tools.visualizer.InputExcludedRelWriter;
 import org.apache.calcite.tools.visualizer.VisualizerNodeInfo;
 import org.apache.calcite.tools.visualizer.VisualizerRuleMatchInfo;
-import org.apache.calcite.tools.visualizer.VolcanoRuleMatchVisualizerListener;
 
 import org.apache.commons.io.IOUtils;
 
@@ -40,6 +42,7 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Deque;
 import java.util.LinkedHashMap;
@@ -71,34 +74,98 @@ import static java.util.stream.Collectors.joining;
  * visualizer.writeToFile(outputDirectory, "");
  * </pre>
  */
-public class VolcanoRuleMatchVisualizer {
+public class VolcanoRuleMatchVisualizer implements RelOptListener {
 
-  public static VolcanoRuleMatchVisualizer createAndAttach(VolcanoPlanner volcanoPlanner) {
-    VolcanoRuleMatchVisualizer vis = new VolcanoRuleMatchVisualizer(volcanoPlanner);
-    // add listener outside of the constructor to make checker-framework happy
-    volcanoPlanner.addListener(new VolcanoRuleMatchVisualizerListener(vis));
-    return vis;
-  }
+  private String latestRuleID = "";
+  private int latestRuleTransformCount = 1;
 
-  VolcanoPlanner volcanoPlanner;
+  // default HTML template is under "resources"
+  private String templateDirectory = "volcano-viz";
+  private String outputDirectory;
+  private String outputSuffix;
+
+  private VolcanoPlanner volcanoPlanner;
 
   // a sequence of ruleMatch ID to represent the order of rule match
-  List<String> ruleMatchSequence = new ArrayList<>();
+  private List<String> ruleMatchSequence = new ArrayList<>();
   // map of ruleMatch ID and the info, including the state snapshot at the time of ruleMatch
-  Map<String, VisualizerRuleMatchInfo> ruleInfoMap = new TreeMap<>();
+  private Map<String, VisualizerRuleMatchInfo> ruleInfoMap = new LinkedHashMap<>();
   // map of nodeID to the ruleID it's first added
-  Map<String, String> nodeAddedInRule = new TreeMap<>();
+  private Map<String, String> nodeAddedInRule = new LinkedHashMap<>();
 
   // a map of relNode ID to the actual RelNode object
   // contains all the relNodes appear during the optimization
   // all RelNode are immutable in Calcite, therefore only new nodes will be added
-  Map<String, RelNode> allNodes = new TreeMap<>();
+  private Map<String, RelNode> allNodes = new LinkedHashMap<>();
 
-  private VolcanoRuleMatchVisualizer(VolcanoPlanner volcanoPlanner) {
-    this.volcanoPlanner = volcanoPlanner;
+  public VolcanoRuleMatchVisualizer(
+      String outputDirectory,
+      String outputSuffix) {
+    this.outputDirectory = outputDirectory;
+    this.outputSuffix = outputSuffix;
+  }
+
+  public void attachTo(VolcanoPlanner planner) {
+    assert this.volcanoPlanner == null;
+    planner.addListener(this);
+    this.volcanoPlanner = planner;
+  }
+
+  /**
+   * After a rule is matched, record the rule and the state after matching.
+   */
+  @Override public void ruleAttempted(RuleAttemptedEvent event) {
+  }
+
+  @Override public void relChosen(RelChosenEvent event) {
+    if(event.getRel() == null)
+      this.addFinalPlan();
+    this.writeToFile();
+  }
+
+  @Override public void ruleProductionSucceeded(RuleProductionEvent event) {
+    RelOptPlanner planner = event.getRuleCall().getPlanner();
+    if (!(planner instanceof VolcanoPlanner)) {
+      return;
+    }
+
+    // ruleAttempted is called once before ruleMatch, and once after ruleMatch
+    if (event.isBefore()) {
+      // add the initialState
+      if (latestRuleID.isEmpty()) {
+        this.addRuleMatch("INITIAL", new ArrayList<>());
+        this.latestRuleID = "INITIAL";
+      }
+      return;
+    }
+
+    // we add the state after the rule is applied
+    RelOptRuleCall ruleCall = event.getRuleCall();
+    String ruleID = Integer.toString(ruleCall.id);
+
+    String displayRuleName = ruleCall.id + "-" + ruleCall.getRule().toString();
+
+    // a rule might call transform to multiple times, handle it by modifying the rule name
+    if (ruleID.equals(this.latestRuleID)) {
+      latestRuleTransformCount++;
+      displayRuleName += "-" + latestRuleTransformCount;
+    } else {
+      latestRuleTransformCount = 1;
+    }
+    this.latestRuleID = ruleID;
+
+    this.addRuleMatch(displayRuleName, Arrays.stream(ruleCall.rels)
+        .collect(Collectors.toList()));
+  }
+
+  @Override public void relDiscarded(RelDiscardedEvent event) {
+  }
+
+  @Override public void relEquivalenceFound(RelEquivalenceEvent event) {
   }
 
   public void addRuleMatch(String ruleCallID, Collection<? extends RelNode> matchedRels) {
+    assert volcanoPlanner != null;
 
     // store the current state snapshot
     // nodes contained in the sets
@@ -261,16 +328,8 @@ public class VolcanoRuleMatchVisualizer {
    * Writes the HTML and JS files of the rule match visualization.
    * <p>
    * The old files with the same name will be replaced.
-   *
-   * @param outputDirectory directory of the output files
-   * @param suffix          file name suffix, can be null
    */
-  public void writeToFile(String outputDirectory, String suffix) {
-    // default HTML template is under "resources"
-    writeToFile("volcano-viz", outputDirectory, suffix);
-  }
-
-  public void writeToFile(String templateDirectory, String outputDirectory, String suffix) {
+  private void writeToFile() {
     addFinalPlan();
     try {
       String templatePath = Paths.get(templateDirectory).resolve("viz-template.html").toString();
@@ -281,8 +340,8 @@ public class VolcanoRuleMatchVisualizer {
       assert resourceAsStream != null;
       String htmlTemplate = IOUtils.toString(resourceAsStream, StandardCharsets.UTF_8);
 
-      String htmlFileName = "volcano-viz" + suffix + ".html";
-      String dataFileName = "volcano-viz-data" + suffix + ".js";
+      String htmlFileName = "volcano-viz" + outputSuffix + ".html";
+      String dataFileName = "volcano-viz-data" + outputSuffix + ".js";
 
       String replaceString = "src=\"volcano-viz-data.js\"";
       int replaceIndex = htmlTemplate.indexOf(replaceString);
