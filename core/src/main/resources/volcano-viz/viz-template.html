@@ -21,15 +21,15 @@ limitations under the License.
 <meta charset="utf-8">
 <title>Calcite Rule Match Visualization</title>
 
-<script src="https://d3js.org/d3.v5.min.js" charset="utf-8"></script>
+<script src="https://d3js.org/d3.v7.min.js" charset="utf-8"></script>
 <script src="https://dagrejs.github.io/project/dagre-d3/latest/dagre-d3.min.js"></script>
-<script src="https://d3js.org/d3-zoom.v1.min.js"></script>
 <script src="https://unpkg.com/tippy.js@3/dist/tippy.all.min.js"></script>
 <script src="volcano-viz-data.js"></script>
 
 <style id="css">
     body {
-        height: 100%;
+        height: 100vh;
+        width: 100vw;
         margin: 0 0;
         color: #333;
         font-weight: 300;
@@ -51,13 +51,16 @@ limitations under the License.
     }
 
     svg {
-        border: 1px solid #ccc;
         overflow: hidden;
         margin: 0 auto;
     }
 
     pre {
         border: 1px solid #ccc;
+    }
+
+    #rule-list-column {
+        border-left: 1px solid #ccc;
     }
 
     .clusters rect {
@@ -84,45 +87,62 @@ limitations under the License.
     }
 
     .container {
+        overflow: hidden;
+        width: 100%;
+        height: 100%;
         display: flex;
-        align-items: center;
+        flex-flow: row nowrap;
     }
 
     .column1 {
-        flex: 0 0 300px;
+        display: flex;
+        flex-flow: column nowrap;
     }
 
     .column2 {
-        flex: 0 0 1000px;
+        flex: 0 1 100%;
     }
 
     .tippy-content {
         word-break: break-all;
         word-wrap: break-word;
     }
+
+    button {
+        padding: 0.1em;
+        display: inline-block;
+        font-size: 2em;
+        min-width: 1.5em;
+    }
 </style>
 
 <div class="container">
-    <div class="column1">
-        <div style="width: 100%; text-align: center">
-            <div id="current-rule" style="display: block"></div>
-            <button id="prev-button" style="width: 80px; height: 40px; display:inline-block" disabled>prev </button>
-            <button id="next-button" style="width: 80px; height: 40px; display:inline-block" disabled> next</button>
-        </div>
-        <ul id="rule-match-list" style="width: 300px; height: 600px; overflow: auto">
-        </ul>
-    </div>
     <div class="column2">
-        <svg id="svg-canvas" width="1200px" height="800px"></svg>
+        <div id="toolbar">
+            <button id="left-button" style="display:inline-block">⤿</button>
+            <button id="right-button" style="display:inline-block">⤾</button>
+            <button id="fit-content-button" style="display:inline-block">⇿</button>
+            <span>&nbsp;</span>
+            <button id="toggle-list-button">≡</button>
+            <button id="prev-button" disabled>◀</button>
+            <button id="next-button" disabled>▶</button>
+            <div id="current-rule" style="display: inline-block"></div>
+        </div>
+        <svg id="svg-canvas" width="100%" height="100%" ></svg>
+    </div>
+    <div id="rule-list-column" class="column1">
+        <div style="width: 100%; text-align: center">
+        </div>
+        <ol id="rule-match-list" style="overflow: auto" start="0">
+        </ul>
     </div>
 </div>
 
 <script id="js">
 
     var allNodes = data.allNodes;
-    var ruleMatchSequence = data.ruleMatchSequence;
-    var ruleMatchInfoMap = data.ruleMatchInfoMap;
     var nodeAddedInRule = data.nodeAddedInRule;
+    var rankDirs = ["BT", "RL", "TB", "LR"];
 
     /*
      * Graph data and D3 JS render related variables
@@ -133,7 +153,7 @@ limitations under the License.
             compound: true
         })
         .setGraph({
-            rankdir: 'LR'
+            rankdir: 'LR',
         })
         .setDefaultEdgeLabel(function () {
             return {};
@@ -147,50 +167,84 @@ limitations under the License.
     var svgGroup = svg.append("g");
 
     // Set up zoom support
-    var svg = d3.select("svg")
-        .attr("width", "1200px")
-        .attr("height", "800px")
-        .call(d3.zoom().on("zoom", function () {
-            svgGroup.attr("transform", d3.event.transform)
-        }));
+    const zoom = d3.zoom().on('zoom', (e) => svgGroup.attr('transform', e.transform));
+    var svg = d3.select('svg')
+        .call(zoom);
+
+    var fitContent = () => {
+        const { x, y, width, height } = svgGroup.node().getBBox();
+        const { clientWidth, clientHeight } = svg.node();
+        if (width && height) {
+            const scale = Math.min(clientWidth / width, clientHeight / height) * 0.98
+            zoom.scaleTo(svg, scale)
+            zoom.translateTo(svg, width/2+x , height/2+y )
+        }
+    };
 
     /*
      * Global State
      */
 
-    var currentRuleID = undefined;
+    var currentRuleIndex = 0;
+    var currentRankDirIdx = 0;
 
     /*
      * Event Handler functions
      */
 
-    var setCurrentRule = (ruleMatchID) => {
+    var updateLocation = () => {
+        var urlParams = new URLSearchParams(location.search); 
+        urlParams.set("rule", currentRuleIndex);
+        urlParams.set("dir", currentRankDirIdx);
+        window.history.pushState({}, "", "?" + urlParams.toString());
+    };
+
+    var parseLocation = () => {
+        var urlParams = new URLSearchParams(location.search); 
+        if (urlParams.has("rule")) {
+            var ruleIdx = Number(urlParams.get("rule"))
+            if (Number.isInteger(ruleIdx))
+                currentRuleIndex = ruleIdx;
+        }
+        if (urlParams.has("dir")) {
+            var dirIdx = Number(urlParams.get("dir"))
+            if (Number.isInteger(ruleIdx) && ruleIdx >= 0 && ruleIdx < rankDirs.length)
+                currentRankDirIdx = dirIdx;
+        }
+    };
+
+    var setCurrentRule = (ruleMatchIndex) => {
         // un-highlight previous entry
-        var prevRuleID = currentRuleID;
-        if (prevRuleID !== undefined) {
-            var prevRuleElement = document.getElementById(prevRuleID);
+        var prevRuleIndex = currentRuleIndex;
+        if (prevRuleIndex !== undefined) {
+            var prevRuleElement = document.getElementById(data.ruleMatchSequence[prevRuleIndex]);
             prevRuleElement.style.backgroundColor = "#FFFFFF";
         }
 
-        currentRuleID = ruleMatchID;
-        document.getElementById('current-rule').innerText = currentRuleID;
+        currentRuleIndex = ruleMatchIndex;
+        var currentRuleID = data.ruleMatchSequence[ruleMatchIndex];
+        document.getElementById('current-rule').innerText = currentRuleIndex + ": " + currentRuleID;
 
         var currentRuleElement = document.getElementById(currentRuleID);
         currentRuleElement.style.backgroundColor = "#D3D3D3";
 
-        var ruleIndex = ruleMatchSequence.indexOf(currentRuleID);
+        document.getElementById("prev-button").disabled = false;
+        document.getElementById("next-button").disabled = false;
 
-        var isFirst = ruleIndex === 0;
-        document.getElementById("prev-button").disabled = isFirst;
-        var isLast = ruleIndex === ruleMatchSequence.length - 1;
-        document.getElementById("next-button").disabled = isLast;
+        if (currentRuleIndex === 0) {
+            document.getElementById("prev-button").disabled = true;
+        }
+        if (currentRuleIndex === data.ruleMatchSequence.length - 1) {
+            document.getElementById("next-button").disabled = true;
+        }
 
-        createGraph(ruleMatchID);
+        updateGraph();
     }
 
-    var createGraph = (ruleMatchID) => {
-        var ruleMatchInfo = ruleMatchInfoMap[ruleMatchID]
-        console.log(ruleMatchInfo);
+    var updateGraph = () => {
+        updateLocation();
+        var ruleMatchID = data.ruleMatchSequence[currentRuleIndex];
+        var ruleMatchInfo = data.ruleMatchInfoMap[ruleMatchID]
 
         // remove previous rendered view and clear graph model
         d3.select("svg g").selectAll("*").remove();
@@ -250,6 +304,10 @@ limitations under the License.
             });
         }
 
+        g.setGraph({
+            rankdir: rankDirs[currentRankDirIdx]
+        })
+
         // re-render
         render(d3.select("svg g"), g);
 
@@ -279,7 +337,7 @@ limitations under the License.
 
     // populate UI list
     var ruleListElement = document.getElementById("rule-match-list");
-    ruleMatchSequence.forEach(ruleMatchID => {
+    data.ruleMatchSequence.forEach((ruleMatchID, index) => {
         var listItem = document.createElement("li");
         var textItem = document.createElement("a");
         textItem.innerText = ruleMatchID;
@@ -289,30 +347,51 @@ limitations under the License.
         listItem.appendChild(textItem);
         ruleListElement.appendChild(listItem);
         listItem.addEventListener("click", event => {
-            var ruleMatchID = event.target.innerText;
-            console.log(ruleMatchID);
-            setCurrentRule(ruleMatchID);
+            setCurrentRule(index);
         })
     })
 
     document.getElementById("prev-button").addEventListener("click", event => {
-        var currentRuleIndex = ruleMatchSequence.indexOf(currentRuleID);
         if (currentRuleIndex !== 0) {
-            setCurrentRule(ruleMatchSequence[currentRuleIndex - 1]);
+            setCurrentRule(currentRuleIndex - 1);
         }
     });
 
     document.getElementById("next-button").addEventListener("click", event => {
-        var currentRuleIndex = ruleMatchSequence.indexOf(currentRuleID);
-        if (currentRuleIndex !== ruleMatchSequence.length - 1) {
-            setCurrentRule(ruleMatchSequence[currentRuleIndex + 1]);
+        if (currentRuleIndex !== data.ruleMatchSequence.length - 1) {
+            setCurrentRule(currentRuleIndex + 1);
         }
     });
 
+    document.getElementById("left-button").addEventListener("click", event => {
+        currentRankDirIdx += 1;
+        if (currentRankDirIdx >= rankDirs.length)
+            currentRankDirIdx = 0;
+        updateGraph();
+    });
+
+    document.getElementById("right-button").addEventListener("click", event => {
+        currentRankDirIdx -= 1;
+        if (currentRankDirIdx < 0)
+            currentRankDirIdx = 3;
+        updateGraph();
+    });
+
+    document.getElementById("fit-content-button").addEventListener("click", fitContent);
+
+    document.getElementById("toggle-list-button").addEventListener("click", () => {
+        var col1 = document.getElementById("rule-list-column");
+        if (col1.style.display === "none") 
+            col1.style.display = "";
+        else 
+            col1.style.display = "none";
+    });
 
     // render initial state
-
-    setCurrentRule(ruleMatchSequence[0]);
+    
+    parseLocation();
+    setCurrentRule(currentRuleIndex);
+    fitContent();
 </script>
 
 </html>
