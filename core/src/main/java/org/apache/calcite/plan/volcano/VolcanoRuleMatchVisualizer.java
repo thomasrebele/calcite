@@ -32,6 +32,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Charsets;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
@@ -40,6 +42,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.text.DecimalFormat;
+import java.text.MessageFormat;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -48,6 +52,7 @@ import java.util.Deque;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -234,8 +239,10 @@ public class VolcanoRuleMatchVisualizer implements RelOptListener {
   private void updateNodeInfo(final RelNode rel, final boolean finalPlan) {
     NodeUpdateHelper helper = getNodeUpdateHelper(rel);
     if (this.includeNonFinalCost || finalPlan) {
-      RelOptCost cost = volcanoPlanner.getCost(rel, rel.getCluster().getMetadataQuery());
-      helper.updateNodeInfo("cost", cost.toString());
+      RelMetadataQuery mq = rel.getCluster().getMetadataQuery();
+      RelOptCost cost = volcanoPlanner.getCost(rel, mq);
+      Double rowCount = mq.getRowCount(rel);
+      helper.updateNodeInfo("cost", formatCost(rowCount, cost));
     }
 
     List<String> inputs = new ArrayList<>();
@@ -564,5 +571,29 @@ public class VolcanoRuleMatchVisualizer implements RelOptListener {
     public boolean isEmptyUpdate() {
       return this.update != null && update.isEmpty();
     }
+  }
+
+  private static String formatCost(Double rowCount, @Nullable RelOptCost cost) {
+    if (cost == null) {
+      return "null";
+    }
+    String originalStr = cost.toString();
+    if (originalStr.contains("inf") || originalStr.contains("huge")
+        || originalStr.contains("tiny")) {
+      return originalStr;
+    }
+    return new MessageFormat("\nrowCount: {0}\nrows: {1}\ncpu:  {2}\nio:   {3}'}'",
+        Locale.ROOT).format(new String[] { formatCostScientific(rowCount),
+        formatCostScientific(cost.getRows()),
+        formatCostScientific(cost.getCpu()),
+        formatCostScientific(cost.getIo()) }
+    );
+  }
+
+  private static String formatCostScientific(double costNumber) {
+    long costRounded = Math.round(costNumber);
+    DecimalFormat formatter = (DecimalFormat) DecimalFormat.getInstance(Locale.ROOT);
+    formatter.applyPattern("#.#############################################E0");
+    return formatter.format(costRounded);
   }
 }
