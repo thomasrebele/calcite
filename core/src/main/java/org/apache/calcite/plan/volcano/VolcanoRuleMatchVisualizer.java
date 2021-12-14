@@ -79,7 +79,8 @@ public class VolcanoRuleMatchVisualizer implements RelOptListener {
   private static final String INITIAL = "INITIAL";
   private static final String FINAL = "FINAL";
 
-  // default HTML template is under "resources"
+  // default HTML template can be edited at
+  // core/src/main/resources/volcano-viz/viz-template.html
   private final String templateDirectory = "volcano-viz";
   private final String outputDirectory;
   private final String outputSuffix;
@@ -287,11 +288,25 @@ public class VolcanoRuleMatchVisualizer implements RelOptListener {
   private String getNodeLabel(final RelNode relNode) {
     if (relNode instanceof RelSubset) {
       final RelSubset relSubset = (RelSubset) relNode;
-      return "subset#" + relSubset.getId() + "-set#" + relSubset.set.id + "-\n"
+      String setId = getSetId(relSubset);
+      return "subset#" + relSubset.getId() + "-set" + setId + "-\n"
           + relSubset.getTraitSet();
     }
 
     return "#" + relNode.getId() + "-" + relNode.getRelTypeName();
+  }
+
+  private String getSetId(final RelSubset relSubset) {
+    String expl = getNodeExplanation(relSubset);
+    int start = expl.indexOf("RelSubset") + "RelSubset".length();
+    if(start < 0) {
+      return "";
+    }
+    int end = expl.indexOf(".", start);
+    if(end < 0) {
+      return "";
+    }
+    return expl.substring(start, end);
   }
 
   private String getNodeExplanation(final RelNode relNode) {
