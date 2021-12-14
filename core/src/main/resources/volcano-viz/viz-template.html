@@ -259,7 +259,8 @@ limitations under the License.
             });
         }
         //var newNodes = Object.values(nodes).filter(n => n.addedInStep === currentStepIndex);
-        return { nodes, };
+        var matchedRels = data.steps[currentStepIndex]["matchedRels"] ?? [];
+        return { nodes, matchedRels };
     };
 
     var updateGraph = () => {
@@ -295,12 +296,15 @@ limitations under the License.
                     nodeLabel = n.label;
                 }
                 var nodeStyle;
-               if (oldStepInfo.importanceZeroNodes
-                    && oldStepInfo.importanceZeroNodes.includes(nodeID)) {
-                    nodeStyle = "fill: #D3D3D3"
-                } else if (stepID !== "INITIAL" && oldStepInfo.newNodes.includes(nodeID)) {
+                if (stepID === "FINAL" && n.inFinalPlan === true) {
+                    if(n.kind === "subset")
+                        nodeStyle = "fill: #E0FFFF";
+                    else
+                        nodeStyle = "fill: #C8C8F3";
+                }
+                else if (stepID !== "INITIAL" && n.addedInStep == currentStepIndex) {
                     nodeStyle = "fill: #E0FFFF";
-                } else if (oldStepInfo.matchedNodes.includes(nodeID)) {
+                } else if (state.matchedRels.includes(nodeID)) {
                     nodeStyle = "fill: #C8C8F3";
                 } else {
                     nodeStyle = "fill: #FFFFFF";

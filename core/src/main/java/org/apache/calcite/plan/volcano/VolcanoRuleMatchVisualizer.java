@@ -137,12 +137,34 @@ public class VolcanoRuleMatchVisualizer implements RelOptListener {
 
   @Override public void relChosen(RelChosenEvent event) {
     if(event.getRel() != null) {
-      finalPlan.add(key(event.getRel()));
+      System.out.println("chose " + event.getRel());
+      this.getNodeUpdateHelper(event.getRel()).updateNodeInfo("inFinalPlan", Boolean.TRUE);
     }
     if (event.getRel() == null) {
+      updateFinalPlan(this.volcanoPlanner.getRoot());
+
       System.out.println("\ndone");
       this.addFinalPlan();
       this.writeToFile();
+    }
+  }
+
+  private void updateFinalPlan(RelNode node) {
+    this.getNodeUpdateHelper(node).updateNodeInfo("inFinalPlan", Boolean.TRUE);
+    if(node instanceof RelSubset) {
+      RelSubset subset = (RelSubset) node;
+      assert subset != null;
+
+      RelNode best = subset.getBest();
+      if(best == null)
+        return;
+
+      updateFinalPlan(best);
+    }
+    else {
+      for(RelNode input : node.getInputs()){
+        updateFinalPlan(input);
+      }
     }
   }
 
@@ -152,7 +174,6 @@ public class VolcanoRuleMatchVisualizer implements RelOptListener {
       return;
     }
 
-    System.out.println("\napplied rule (before: " + event.isBefore() + ")");
     // ruleAttempted is called once before ruleMatch, and once after ruleMatch
     if (event.isBefore()) {
       // add the initialState
@@ -187,15 +208,11 @@ public class VolcanoRuleMatchVisualizer implements RelOptListener {
 
   @Override public void relEquivalenceFound(RelEquivalenceEvent event) {
     Object eqClass = event.getEquivalenceClass();
-    System.out.println("eq rel " + event.getRel() + " class " + eqClass
-        + " " + eqClass.getClass());
-
     if (eqClass instanceof String) {
       String eqClassStr = (String) eqClass;
       eqClassStr = eqClassStr.replace("equivalence class ", "");
       String setId = "set-" + eqClassStr;
       registerSet(setId);
-
       getNodeUpdateHelper(event.getRel()).updateNodeInfo("set", setId);
     }
     registerNode(event.getRel());
@@ -282,8 +299,6 @@ public class VolcanoRuleMatchVisualizer implements RelOptListener {
     mi.id = ruleCallID;
     if (ruleCall != null) {
       mi.matchedRels = Arrays.stream(ruleCall.rels).map(this::key).collect(Collectors.toList());
-    } else {
-      mi.matchedRels = this.finalPlan;
     }
     mi.updates = nextNodeUpdates;
 
