@@ -54,10 +54,11 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
- * This is tool to visualize the rule match process of the VolcanoPlanner.
+ * This is tool to visualize the rule match process of a RelOptPlanner.
  *
+ * TODO: property and documentation, usage example
  *
- * <p>To use the visualizer, add a listener before the VolcanoPlanner optimization phase.
+ * <p>To use the visualizer, add a listener before the  optimization phase.
  * Then writes the output to a file after the optimization ends.
  *
  * <pre>
@@ -83,8 +84,7 @@ public class VolcanoRuleMatchVisualizer implements RelOptListener {
   private String latestRuleID = "";
   private int latestRuleTransformCount = 1;
 
-  // TODO: generalize
-  private VolcanoPlanner volcanoPlanner;
+  private RelOptPlanner planner;
 
   private boolean includeNonFinalCost = false;
   private final List<NewRuleMatchInfo> steps = new ArrayList<>();
@@ -100,10 +100,10 @@ public class VolcanoRuleMatchVisualizer implements RelOptListener {
     this.outputSuffix = outputSuffix;
   }
 
-  public void attachTo(VolcanoPlanner planner) {
-    assert this.volcanoPlanner == null;
+  public void attachTo(RelOptPlanner planner) {
+    assert this.planner == null;
     planner.addListener(this);
-    this.volcanoPlanner = planner;
+    this.planner = planner;
   }
 
   /**
@@ -118,7 +118,7 @@ public class VolcanoRuleMatchVisualizer implements RelOptListener {
     }
     if (event.getRel() == null) {
       // visit plan to mark subsets
-      updateFinalPlan(this.volcanoPlanner.getRoot());
+      updateFinalPlan(this.planner.getRoot());
       this.addFinalPlan();
       this.writeToFile();
     }
@@ -141,9 +141,6 @@ public class VolcanoRuleMatchVisualizer implements RelOptListener {
 
   @Override public void ruleProductionSucceeded(RuleProductionEvent event) {
     RelOptPlanner planner = event.getRuleCall().getPlanner();
-    if (!(planner instanceof VolcanoPlanner)) {
-      return;
-    }
 
     // ruleAttempted is called once before ruleMatch, and once after ruleMatch
     if (event.isBefore()) {
@@ -228,7 +225,7 @@ public class VolcanoRuleMatchVisualizer implements RelOptListener {
     NodeUpdateHelper helper = getNodeUpdateHelper(rel);
     if (this.includeNonFinalCost || finalPlan) {
       RelMetadataQuery mq = rel.getCluster().getMetadataQuery();
-      RelOptCost cost = volcanoPlanner.getCost(rel, mq);
+      RelOptCost cost = planner.getCost(rel, mq);
       Double rowCount = mq.getRowCount(rel);
       helper.updateNodeInfo("cost", formatCost(rowCount, cost));
     }
@@ -257,7 +254,7 @@ public class VolcanoRuleMatchVisualizer implements RelOptListener {
   }
 
   public void addRuleMatch(String ruleCallID, RelOptRuleCall ruleCall) {
-    assert volcanoPlanner != null;
+    assert planner != null;
 
     //Collection<? extends RelNode> matchedRels;
 
