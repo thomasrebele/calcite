@@ -24,8 +24,8 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.sql.SqlExplainLevel;
-
 import org.apache.calcite.util.Pair;
+
 import org.apache.commons.io.IOUtils;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -46,6 +46,7 @@ import java.text.DecimalFormat;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -86,11 +87,11 @@ public class VolcanoRuleMatchVisualizer implements RelOptListener {
   private String latestRuleID = "";
   private int latestRuleTransformCount = 1;
 
-  private RelOptPlanner planner;
+  private RelOptPlanner planner = null;
 
   private boolean includeTransitiveEdges = false;
   private boolean includeNonFinalCost = false;
-  private final List<NewRuleMatchInfo> steps = new ArrayList<>();
+  private final List<StepInfo> steps = new ArrayList<>();
   private final Map<String, NodeUpdateHelper> allNodes = new LinkedHashMap<>();
 
   public VolcanoRuleMatchVisualizer(
@@ -111,6 +112,7 @@ public class VolcanoRuleMatchVisualizer implements RelOptListener {
 
   @Override public void relChosen(RelChosenEvent event) {
     if (event.getRel() == null) {
+      assert this.planner.getRoot() != null;
       updateFinalPlan(this.planner.getRoot());
       this.addFinalPlan();
       this.writeToFile();
@@ -119,22 +121,20 @@ public class VolcanoRuleMatchVisualizer implements RelOptListener {
 
   private void updateFinalPlan(RelNode node) {
     this.getNodeUpdateHelper(node).updateNodeInfo("inFinalPlan", Boolean.TRUE);
-    if(node instanceof RelSubset) {
+    if (node instanceof RelSubset) {
       RelSubset subset = (RelSubset) node;
-      if(subset.getBest() == null)
+      if (subset.getBest() == null) {
         return;
+      }
       updateFinalPlan(subset.getBest());
-    }
-    else {
-      for(RelNode input : node.getInputs()){
+    } else {
+      for (RelNode input : node.getInputs()) {
         updateFinalPlan(input);
       }
     }
   }
 
   @Override public void ruleProductionSucceeded(RuleProductionEvent event) {
-    RelOptPlanner planner = event.getRuleCall().getPlanner();
-
     // ruleAttempted is called once before ruleMatch, and once after ruleMatch
     if (event.isBefore()) {
       // add the initialState
@@ -150,7 +150,7 @@ public class VolcanoRuleMatchVisualizer implements RelOptListener {
     RelOptRuleCall ruleCall = event.getRuleCall();
     String ruleID = Integer.toString(ruleCall.id);
 
-    String displayRuleName = ruleCall.id + "-" + ruleCall.getRule().toString();
+    String displayRuleName = ruleCall.id + "-" + ruleCall.getRule();
 
     // a rule might call transform to multiple times, handle it by modifying the rule name
     if (ruleID.equals(this.latestRuleID)) {
@@ -168,6 +168,7 @@ public class VolcanoRuleMatchVisualizer implements RelOptListener {
   }
 
   @Override public void relEquivalenceFound(RelEquivalenceEvent event) {
+    assert event.getRel() != null;
     Object eqClass = event.getEquivalenceClass();
     if (eqClass instanceof String) {
       String eqClassStr = (String) eqClass;
@@ -176,26 +177,22 @@ public class VolcanoRuleMatchVisualizer implements RelOptListener {
       registerSet(setId);
       getNodeUpdateHelper(event.getRel()).updateNodeInfo("set", setId);
     }
-    registerNode(event.getRel());
-  }
-
-
-  private void registerNode(final RelNode rel) {
-    this.getNodeUpdateHelper(rel);
+    // register node
+    this.getNodeUpdateHelper(event.getRel());
   }
 
   private void registerSet(final String setID) {
-    NodeUpdateHelper helper = this.allNodes.computeIfAbsent(setID, k -> {
-    NodeUpdateHelper h = new NodeUpdateHelper(setID, null);
-       h.updateNodeInfo("label", setID);
-       h.updateNodeInfo("kind", "set");
-       return h;
+    this.allNodes.computeIfAbsent(setID, k -> {
+      NodeUpdateHelper h = new NodeUpdateHelper(setID, null);
+      h.updateNodeInfo("label", setID);
+      h.updateNodeInfo("kind", "set");
+      return h;
     });
   }
 
   private NodeUpdateHelper getNodeUpdateHelper(final RelNode rel) {
     return this.allNodes.computeIfAbsent(key(rel), k -> {
-        NodeUpdateHelper h = new NodeUpdateHelper(key(rel), rel);
+      NodeUpdateHelper h = new NodeUpdateHelper(key(rel), rel);
       // attributes that need to be set only once
       h.updateNodeInfo("label", getNodeLabel(rel));
       h.updateNodeInfo("explanation", getNodeExplanation(rel));
@@ -217,7 +214,7 @@ public class VolcanoRuleMatchVisualizer implements RelOptListener {
     }
 
     List<String> inputs = new ArrayList<>();
-    if(rel instanceof RelSubset) {
+    if (rel instanceof RelSubset) {
       RelSubset relSubset = (RelSubset) rel;
       relSubset.getRels().forEach(input -> inputs.add(key(input)));
       Set<String> transitive = new HashSet<>();
@@ -225,12 +222,12 @@ public class VolcanoRuleMatchVisualizer implements RelOptListener {
           .filter(other -> !other.equals(relSubset))
           .forEach(input -> {
             inputs.add(key(input));
-            if(!includeTransitiveEdges)
+            if (!includeTransitiveEdges) {
               input.getRels().forEach(r -> transitive.add(key(r)));
+            }
           });
       inputs.removeAll(transitive);
-    }
-    else {
+    } else {
       rel.getInputs().forEach(input -> inputs.add(key(input)));
     }
 
@@ -242,27 +239,26 @@ public class VolcanoRuleMatchVisualizer implements RelOptListener {
     return "" + rel.getId();
   }
 
-  public void addRuleMatch(String ruleCallID, RelOptRuleCall ruleCall) {
+  public void addRuleMatch(String ruleCallID, @Nullable RelOptRuleCall ruleCall) {
     assert planner != null;
 
     Map<String, NodeUpdateInfo> nextNodeUpdates = new LinkedHashMap<>();
 
     for (NodeUpdateHelper h : allNodes.values()) {
-      if(h.rel != null)
+      if (h.rel != null) {
         updateNodeInfo(h.rel, FINAL.equals(ruleCallID));
-      if(h.isEmptyUpdate())
+      }
+      if (h.isEmptyUpdate()) {
         continue;
+      }
       nextNodeUpdates.put(h.key, h.update);
       h.update = null;
     }
 
-    NewRuleMatchInfo mi = new NewRuleMatchInfo();
-    this.steps.add(mi);
-    mi.id = ruleCallID;
-    if (ruleCall != null) {
-      mi.matchedRels = Arrays.stream(ruleCall.rels).map(this::key).collect(Collectors.toList());
-    }
-    mi.updates = nextNodeUpdates;
+    List<String> matchedRels = ruleCall == null
+        ? Collections.emptyList()
+        : Arrays.stream(ruleCall.rels).map(this::key).collect(Collectors.toList());
+    this.steps.add(new StepInfo(ruleCallID, nextNodeUpdates, matchedRels));
   }
 
   /**
@@ -270,14 +266,10 @@ public class VolcanoRuleMatchVisualizer implements RelOptListener {
    */
   private void addFinalPlan() {
     int size = this.steps.size();
-    if (size > 0 && FINAL.equals(this.steps.get(size - 1).id )) {
+    if (size > 0 && FINAL.equals(this.steps.get(size - 1).id)) {
       return;
     }
     this.addRuleMatch(FINAL, null);
-  }
-
-  private String getSetLabel(RelSet set) {
-    return "set-" + set.id + "    ";
   }
 
   private String getJsonStringResult() {
@@ -293,10 +285,10 @@ public class VolcanoRuleMatchVisualizer implements RelOptListener {
   }
 
   private String getNodeLabel(final RelNode relNode) {
-    if(relNode instanceof RelSubset) {
+    if (relNode instanceof RelSubset) {
       final RelSubset relSubset = (RelSubset) relNode;
       return "subset#" + relSubset.getId() + "-set#" + relSubset.set.id + "-\n"
-          + relSubset.getTraitSet().toString();
+          + relSubset.getTraitSet();
     }
 
     return "#" + relNode.getId() + "-" + relNode.getRelTypeName();
@@ -352,45 +344,59 @@ public class VolcanoRuleMatchVisualizer implements RelOptListener {
     }
   }
 
-  private static class NewRuleMatchInfo {
-    public String id;
+  /**
+   * All info for one step.
+   */
+  private static class StepInfo {
+    public String id = "";
     public Map<String, NodeUpdateInfo> updates = new LinkedHashMap<>();
     public List<String> matchedRels;
-  }
 
-  private static class NodeUpdateInfo extends LinkedHashMap<String, Object> {
-    public NodeUpdateInfo(final NodeUpdateInfo update) {
-      super(update);
+    StepInfo(final String id,
+        final Map<String, NodeUpdateInfo> updates, final List<String> matchedRels) {
+      this.id = id;
+      this.updates = updates;
+      this.matchedRels = matchedRels;
     }
-
-    public NodeUpdateInfo() {}
   }
 
-  private class NodeUpdateHelper {
-    String key;
-    RelNode rel;
-    NodeUpdateInfo state;
-    NodeUpdateInfo update;
+  /**
+   * Type alias.
+   */
+  private static class NodeUpdateInfo extends LinkedHashMap<String, Object> {
+  }
 
-    NodeUpdateHelper(String key, RelNode rel) {
+  /**
+   * Helper class to create the node update.
+   */
+  private static class NodeUpdateHelper {
+    String key;
+    private RelNode rel;
+    private NodeUpdateInfo state;
+    private NodeUpdateInfo update;
+
+    NodeUpdateHelper(String key, @Nullable RelNode rel) {
       this.key = key;
       this.rel = rel;
       this.state = new NodeUpdateInfo();
     }
 
     private void updateNodeInfo(final String attr, final Object newValue) {
-      if (Objects.equals(newValue, state.get(attr)))
+      if (Objects.equals(newValue, state.get(attr))) {
         return;
+      }
 
       state.put(attr, newValue);
 
-      if (update == null)
+      if (update == null) {
         update = new NodeUpdateInfo();
+      }
 
-      if(newValue instanceof List
+      if (newValue instanceof List
           && ((List<?>) newValue).size() == 0
-          && !update.containsKey(attr))
+          && !update.containsKey(attr)) {
         return;
+      }
 
       update.put(attr, newValue);
     }
@@ -410,10 +416,12 @@ public class VolcanoRuleMatchVisualizer implements RelOptListener {
       return originalStr;
     }
     return new MessageFormat("\nrowCount: {0}\nrows: {1}\ncpu:  {2}\nio:   {3}",
-        Locale.ROOT).format(new String[] { formatCostScientific(rowCount),
-        formatCostScientific(cost.getRows()),
-        formatCostScientific(cost.getCpu()),
-        formatCostScientific(cost.getIo()) }
+        Locale.ROOT).format(new String[]{
+            formatCostScientific(rowCount),
+            formatCostScientific(cost.getRows()),
+            formatCostScientific(cost.getCpu()),
+            formatCostScientific(cost.getIo())
+        }
     );
   }
 
@@ -437,7 +445,7 @@ public class VolcanoRuleMatchVisualizer implements RelOptListener {
    * </pre>
    *
    */
-  public class InputExcludedRelWriter implements RelWriter {
+  public static class InputExcludedRelWriter implements RelWriter {
 
     private final Map<String, @Nullable Object> values = new LinkedHashMap<>();
 
