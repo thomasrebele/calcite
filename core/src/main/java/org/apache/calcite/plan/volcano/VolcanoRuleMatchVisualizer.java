@@ -46,11 +46,13 @@ import java.text.DecimalFormat;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -86,6 +88,7 @@ public class VolcanoRuleMatchVisualizer implements RelOptListener {
 
   private RelOptPlanner planner;
 
+  private boolean includeTransitiveEdges = false;
   private boolean includeNonFinalCost = false;
   private final List<NewRuleMatchInfo> steps = new ArrayList<>();
   // TODO: combine to one hashmap?
@@ -233,11 +236,16 @@ public class VolcanoRuleMatchVisualizer implements RelOptListener {
     List<String> inputs = new ArrayList<>();
     if(rel instanceof RelSubset) {
       RelSubset relSubset = (RelSubset) rel;
-      // TODO: remove transitive edges?
       relSubset.getRels().forEach(input -> inputs.add(key(input)));
+      Set<String> transitive = new HashSet<>();
       relSubset.getSubsetsSatisfyingThis()
           .filter(other -> !other.equals(relSubset))
-          .forEach(input -> inputs.add(key(input)));
+          .forEach(input -> {
+            inputs.add(key(input));
+            if(!includeTransitiveEdges)
+              input.getRels().forEach(r -> transitive.add(key(r)));
+          });
+      inputs.removeAll(transitive);
     }
     else {
       rel.getInputs().forEach(input -> inputs.add(key(input)));
@@ -427,7 +435,7 @@ public class VolcanoRuleMatchVisualizer implements RelOptListener {
         || originalStr.contains("tiny")) {
       return originalStr;
     }
-    return new MessageFormat("\nrowCount: {0}\nrows: {1}\ncpu:  {2}\nio:   {3}'}'",
+    return new MessageFormat("\nrowCount: {0}\nrows: {1}\ncpu:  {2}\nio:   {3}",
         Locale.ROOT).format(new String[] { formatCostScientific(rowCount),
         formatCostScientific(cost.getRows()),
         formatCostScientific(cost.getCpu()),
