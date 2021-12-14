@@ -92,7 +92,7 @@ public class RuleMatchVisualizer implements RelOptListener {
   private @Nullable RelOptPlanner planner = null;
 
   private boolean includeTransitiveEdges = false;
-  private boolean includeNonFinalCost = false;
+  private boolean includeIntermediateCosts = false;
 
   private final List<StepInfo> steps = new ArrayList<>();
   private final Map<String, NodeUpdateHelper> allNodes = new LinkedHashMap<>();
@@ -104,17 +104,29 @@ public class RuleMatchVisualizer implements RelOptListener {
     this.outputSuffix = outputSuffix;
   }
 
+  /**
+   * Attaches the visualizer to the planner.
+   * Must be called before applying the rules.
+   * Must be called exactly once.
+   */
   public void attachTo(RelOptPlanner planner) {
+    assert this.planner == null;
     planner.addListener(this);
     this.planner = planner;
   }
 
+  /**
+   * Output edges from a subset to the nodes of all subsets that satisfy it.
+   */
   public void setIncludeTransitiveEdges(final boolean includeTransitiveEdges) {
     this.includeTransitiveEdges = includeTransitiveEdges;
   }
 
-  public void setIncludeNonFinalCost(final boolean includeNonFinalCost) {
-    this.includeNonFinalCost = includeNonFinalCost;
+  /**
+   * Output intermediate costs, including all cost updates.
+   */
+  public void setIncludeIntermediateCosts(final boolean includeIntermediateCosts) {
+    this.includeIntermediateCosts = includeIntermediateCosts;
   }
 
   @Override public void ruleAttempted(RuleAttemptedEvent event) {
@@ -127,20 +139,24 @@ public class RuleMatchVisualizer implements RelOptListener {
     }
   }
 
+  /**
+   * Register initial plan.
+   * (Workaround for HepPlanner)
+   */
   private void updateInitialPlan(RelNode node) {
     if(node instanceof HepRelVertex){
       HepRelVertex v = (HepRelVertex) node;
       updateInitialPlan(v.getCurrentRel());
       return;
     }
-    this.getNodeUpdateHelper(node);
+    this.registerRelNode(node);
     for(RelNode input : getInputs(node)) {
       updateInitialPlan(input);
     }
   }
 
   /**
-   * Get the inputs for a node, traversing {@link HepRelVertex}.
+   * Get the inputs for a node, unwrapping {@link HepRelVertex} nodes.
    * (Workaround for HepPlanner)
    */
   private Collection<RelNode> getInputs(final RelNode node) {
@@ -162,13 +178,16 @@ public class RuleMatchVisualizer implements RelOptListener {
     }
   }
 
+  /**
+   * Mark nodes that are part of the final plan.
+   */
   private void updateFinalPlan(RelNode node) {
     int size = this.steps.size();
     if (size > 0 && FINAL.equals(this.steps.get(size - 1).id)) {
       return;
     }
 
-    this.getNodeUpdateHelper(node).updateAttribute("inFinalPlan", Boolean.TRUE);
+    this.registerRelNode(node).updateAttribute("inFinalPlan", Boolean.TRUE);
     if (node instanceof RelSubset) {
       RelSubset subset = (RelSubset) node;
       if (subset.getBest() == null) {
@@ -221,12 +240,15 @@ public class RuleMatchVisualizer implements RelOptListener {
       eqClassStr = eqClassStr.replace("equivalence class ", "");
       String setId = "set-" + eqClassStr;
       registerSet(setId);
-      getNodeUpdateHelper(event.getRel()).updateAttribute("set", setId);
+      registerRelNode(event.getRel()).updateAttribute("set", setId);
     }
     // register node
-    this.getNodeUpdateHelper(event.getRel());
+    this.registerRelNode(event.getRel());
   }
 
+  /**
+   * Add a set.
+   */
   private void registerSet(final String setID) {
     this.allNodes.computeIfAbsent(setID, k -> {
       NodeUpdateHelper h = new NodeUpdateHelper(setID, null);
@@ -236,7 +258,10 @@ public class RuleMatchVisualizer implements RelOptListener {
     });
   }
 
-  private NodeUpdateHelper getNodeUpdateHelper(final RelNode rel) {
+  /**
+   * Add a RelNode to track its changes.
+   */
+  private NodeUpdateHelper registerRelNode(final RelNode rel) {
     return this.allNodes.computeIfAbsent(key(rel), k -> {
       NodeUpdateHelper h = new NodeUpdateHelper(key(rel), rel);
       // attributes that need to be set only once
@@ -251,9 +276,12 @@ public class RuleMatchVisualizer implements RelOptListener {
     });
   }
 
-  private void updateNodeInfo(final RelNode rel, final boolean finalPlan) {
-    NodeUpdateHelper helper = getNodeUpdateHelper(rel);
-    if (this.includeNonFinalCost || finalPlan) {
+  /**
+   * Check and store the changes of the rel node.
+   */
+  private void updateNodeInfo(final RelNode rel, final boolean isLastStep) {
+    NodeUpdateHelper helper = registerRelNode(rel);
+    if (this.includeIntermediateCosts || isLastStep) {
       assert planner != null;
       RelMetadataQuery mq = rel.getCluster().getMetadataQuery();
       RelOptCost cost = planner.getCost(rel, mq);
@@ -282,11 +310,9 @@ public class RuleMatchVisualizer implements RelOptListener {
     helper.updateAttribute("inputs", inputs);
   }
 
-
-  private String key(final RelNode rel) {
-    return "" + rel.getId();
-  }
-
+  /**
+   * Add the updates since the last step to {@link #steps}.
+   */
   private void addStep(String stepID, @Nullable RelOptRuleCall ruleCall) {
     Map<String, Object> nextNodeUpdates = new LinkedHashMap<>();
 
@@ -312,50 +338,6 @@ public class RuleMatchVisualizer implements RelOptListener {
         ? Collections.emptyList()
         : Arrays.stream(ruleCall.rels).map(this::key).collect(Collectors.toList());
     this.steps.add(new StepInfo(stepID, nextNodeUpdates, matchedRels));
-  }
-
-
-
-  private String getJsonStringResult() {
-    try {
-      LinkedHashMap<String, Object> data = new LinkedHashMap<>();
-      data.put("steps", steps);
-
-      ObjectMapper objectMapper = new ObjectMapper();
-      return objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(data);
-    } catch (JsonProcessingException e) {
-      throw new RuntimeException(e);
-    }
-  }
-
-  private String getNodeLabel(final RelNode relNode) {
-    if (relNode instanceof RelSubset) {
-      final RelSubset relSubset = (RelSubset) relNode;
-      String setId = getSetId(relSubset);
-      return "subset#" + relSubset.getId() + "-set" + setId + "-\n"
-          + relSubset.getTraitSet();
-    }
-
-    return "#" + relNode.getId() + "-" + relNode.getRelTypeName();
-  }
-
-  private String getSetId(final RelSubset relSubset) {
-    String explanation = getNodeExplanation(relSubset);
-    int start = explanation.indexOf("RelSubset") + "RelSubset".length();
-    if(start < 0) {
-      return "";
-    }
-    int end = explanation.indexOf(".", start);
-    if(end < 0) {
-      return "";
-    }
-    return explanation.substring(start, end);
-  }
-
-  private String getNodeExplanation(final RelNode relNode) {
-    InputExcludedRelWriter relWriter = new InputExcludedRelWriter();
-    relNode.explain(relWriter);
-    return relWriter.toString();
   }
 
   /**
@@ -400,6 +382,54 @@ public class RuleMatchVisualizer implements RelOptListener {
     }
   }
 
+  //--------------------------------------------------------------------------------
+  // methods related to string representation
+  //--------------------------------------------------------------------------------
+
+  private String key(final RelNode rel) {
+    return "" + rel.getId();
+  }
+
+  private String getJsonStringResult() {
+    try {
+      LinkedHashMap<String, Object> data = new LinkedHashMap<>();
+      data.put("steps", steps);
+      ObjectMapper objectMapper = new ObjectMapper();
+      return objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(data);
+    } catch (JsonProcessingException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  private String getNodeLabel(final RelNode relNode) {
+    if (relNode instanceof RelSubset) {
+      final RelSubset relSubset = (RelSubset) relNode;
+      String setId = getSetId(relSubset);
+      return "subset#" + relSubset.getId() + "-set" + setId + "-\n"
+          + relSubset.getTraitSet();
+    }
+
+    return "#" + relNode.getId() + "-" + relNode.getRelTypeName();
+  }
+
+  private String getSetId(final RelSubset relSubset) {
+    String explanation = getNodeExplanation(relSubset);
+    int start = explanation.indexOf("RelSubset") + "RelSubset".length();
+    if(start < 0) {
+      return "";
+    }
+    int end = explanation.indexOf(".", start);
+    if(end < 0) {
+      return "";
+    }
+    return explanation.substring(start, end);
+  }
+
+  private String getNodeExplanation(final RelNode relNode) {
+    InputExcludedRelWriter relWriter = new InputExcludedRelWriter();
+    relNode.explain(relWriter);
+    return relWriter.toString();
+  }
 
   private static String formatCost(Double rowCount, @Nullable RelOptCost cost) {
     if (cost == null) {
