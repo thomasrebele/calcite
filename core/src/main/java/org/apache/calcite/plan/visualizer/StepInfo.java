@@ -17,7 +17,6 @@
 
 package org.apache.calcite.plan.visualizer;
 
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -25,9 +24,10 @@ import java.util.Map;
  * All info for one step.
  */
 class StepInfo {
-  String id = "";
-  Map<String, NodeUpdateInfo> updates = new LinkedHashMap<>();
-  List<String> matchedRels;
+  // public, so that attributes are serialized to json
+  public final String id;
+  public final Map<String, NodeUpdateInfo> updates;
+  public final List<String> matchedRels;
 
   StepInfo(final String id,
       final Map<String, NodeUpdateInfo> updates, final List<String> matchedRels) {

@@ -85,10 +85,11 @@ public class RuleMatchVisualizer implements RelOptListener {
   private String latestRuleID = "";
   private int latestRuleTransformCount = 1;
 
-  private RelOptPlanner planner = null;
+  private @Nullable RelOptPlanner planner = null;
 
   private boolean includeTransitiveEdges = false;
   private boolean includeNonFinalCost = false;
+
   private final List<StepInfo> steps = new ArrayList<>();
   private final Map<String, NodeUpdateHelper> allNodes = new LinkedHashMap<>();
 
@@ -100,9 +101,16 @@ public class RuleMatchVisualizer implements RelOptListener {
   }
 
   public void attachTo(RelOptPlanner planner) {
-    assert this.planner == null;
     planner.addListener(this);
     this.planner = planner;
+  }
+
+  public void setIncludeTransitiveEdges(final boolean includeTransitiveEdges) {
+    this.includeTransitiveEdges = includeTransitiveEdges;
+  }
+
+  public void setIncludeNonFinalCost(final boolean includeNonFinalCost) {
+    this.includeNonFinalCost = includeNonFinalCost;
   }
 
   @Override public void ruleAttempted(RuleAttemptedEvent event) {
@@ -110,14 +118,20 @@ public class RuleMatchVisualizer implements RelOptListener {
 
   @Override public void relChosen(RelChosenEvent event) {
     if (event.getRel() == null) {
+      assert this.planner != null;
       assert this.planner.getRoot() != null;
       updateFinalPlan(this.planner.getRoot());
-      this.addFinalPlan();
+      this.addStep(FINAL, null);
       this.writeToFile();
     }
   }
 
   private void updateFinalPlan(RelNode node) {
+    int size = this.steps.size();
+    if (size > 0 && FINAL.equals(this.steps.get(size - 1).id)) {
+      return;
+    }
+
     this.getNodeUpdateHelper(node).updateNodeInfo("inFinalPlan", Boolean.TRUE);
     if (node instanceof RelSubset) {
       RelSubset subset = (RelSubset) node;
@@ -133,21 +147,19 @@ public class RuleMatchVisualizer implements RelOptListener {
   }
 
   @Override public void ruleProductionSucceeded(RuleProductionEvent event) {
-    // ruleAttempted is called once before ruleMatch, and once after ruleMatch
+    // method is called once before ruleMatch, and once after ruleMatch
     if (event.isBefore()) {
       // add the initialState
       if (latestRuleID.isEmpty()) {
-        this.addRuleMatch(INITIAL, null);
+        this.addStep(INITIAL, null);
         this.latestRuleID = INITIAL;
       }
       return;
     }
 
-
     // we add the state after the rule is applied
     RelOptRuleCall ruleCall = event.getRuleCall();
     String ruleID = Integer.toString(ruleCall.id);
-
     String displayRuleName = ruleCall.id + "-" + ruleCall.getRule();
 
     // a rule might call transform to multiple times, handle it by modifying the rule name
@@ -159,7 +171,7 @@ public class RuleMatchVisualizer implements RelOptListener {
     }
     this.latestRuleID = ruleID;
 
-    this.addRuleMatch(displayRuleName, ruleCall);
+    this.addStep(displayRuleName, ruleCall);
   }
 
   @Override public void relDiscarded(RelDiscardedEvent event) {
@@ -205,6 +217,7 @@ public class RuleMatchVisualizer implements RelOptListener {
   private void updateNodeInfo(final RelNode rel, final boolean finalPlan) {
     NodeUpdateHelper helper = getNodeUpdateHelper(rel);
     if (this.includeNonFinalCost || finalPlan) {
+      assert planner != null;
       RelMetadataQuery mq = rel.getCluster().getMetadataQuery();
       RelOptCost cost = planner.getCost(rel, mq);
       Double rowCount = mq.getRowCount(rel);
@@ -237,14 +250,12 @@ public class RuleMatchVisualizer implements RelOptListener {
     return "" + rel.getId();
   }
 
-  public void addRuleMatch(String ruleCallID, @Nullable RelOptRuleCall ruleCall) {
-    assert planner != null;
-
+  private void addStep(String stepID, @Nullable RelOptRuleCall ruleCall) {
     Map<String, NodeUpdateInfo> nextNodeUpdates = new LinkedHashMap<>();
 
     for (NodeUpdateHelper h : allNodes.values()) {
       if (h.rel != null) {
-        updateNodeInfo(h.rel, FINAL.equals(ruleCallID));
+        updateNodeInfo(h.rel, FINAL.equals(stepID));
       }
       if (h.isEmptyUpdate()) {
         continue;
@@ -256,19 +267,10 @@ public class RuleMatchVisualizer implements RelOptListener {
     List<String> matchedRels = ruleCall == null
         ? Collections.emptyList()
         : Arrays.stream(ruleCall.rels).map(this::key).collect(Collectors.toList());
-    this.steps.add(new StepInfo(ruleCallID, nextNodeUpdates, matchedRels));
+    this.steps.add(new StepInfo(stepID, nextNodeUpdates, matchedRels));
   }
 
-  /**
-   * Add a final plan to the variable.
-   */
-  private void addFinalPlan() {
-    int size = this.steps.size();
-    if (size > 0 && FINAL.equals(this.steps.get(size - 1).id)) {
-      return;
-    }
-    this.addRuleMatch(FINAL, null);
-  }
+
 
   private String getJsonStringResult() {
     try {
@@ -294,16 +296,16 @@ public class RuleMatchVisualizer implements RelOptListener {
   }
 
   private String getSetId(final RelSubset relSubset) {
-    String expl = getNodeExplanation(relSubset);
-    int start = expl.indexOf("RelSubset") + "RelSubset".length();
+    String explanation = getNodeExplanation(relSubset);
+    int start = explanation.indexOf("RelSubset") + "RelSubset".length();
     if(start < 0) {
       return "";
     }
-    int end = expl.indexOf(".", start);
+    int end = explanation.indexOf(".", start);
     if(end < 0) {
       return "";
     }
-    return expl.substring(start, end);
+    return explanation.substring(start, end);
   }
 
   private String getNodeExplanation(final RelNode relNode) {
@@ -318,10 +320,8 @@ public class RuleMatchVisualizer implements RelOptListener {
    * The old files with the same name will be replaced.
    */
   private void writeToFile() {
-    addFinalPlan();
     try {
       String templatePath = Paths.get(templateDirectory).resolve("viz-template.html").toString();
-      assert templatePath != null;
       ClassLoader cl = getClass().getClassLoader();
       assert cl != null;
       InputStream resourceAsStream = cl.getResourceAsStream(templatePath);

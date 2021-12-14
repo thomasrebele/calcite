@@ -30,9 +30,9 @@ import java.util.Objects;
 class NodeUpdateHelper {
 
   String key;
-  RelNode rel;
+  @Nullable RelNode rel;
   NodeUpdateInfo state;
-  NodeUpdateInfo update;
+  @Nullable NodeUpdateInfo update = null;
 
   NodeUpdateHelper(String key, @Nullable RelNode rel) {
     this.key = key;
