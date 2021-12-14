@@ -20,6 +20,7 @@ import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptListener;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelOptRuleCall;
+import org.apache.calcite.plan.hep.HepRelVertex;
 import org.apache.calcite.plan.volcano.RelSubset;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
@@ -44,6 +45,7 @@ import java.text.DecimalFormat;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -75,6 +77,7 @@ public class RuleMatchVisualizer implements RelOptListener {
 
   private static final String INITIAL = "INITIAL";
   private static final String FINAL = "FINAL";
+  public static final String DEFAULT_SET = "default";
 
   // default HTML template can be edited at
   // core/src/main/resources/volcano-viz/viz-template.html
@@ -84,6 +87,7 @@ public class RuleMatchVisualizer implements RelOptListener {
 
   private String latestRuleID = "";
   private int latestRuleTransformCount = 1;
+  boolean initialized = false;
 
   private @Nullable RelOptPlanner planner = null;
 
@@ -114,6 +118,36 @@ public class RuleMatchVisualizer implements RelOptListener {
   }
 
   @Override public void ruleAttempted(RuleAttemptedEvent event) {
+    // HepPlanner compatibility
+    if(!initialized) {
+      initialized = true;
+      updateInitialPlan(planner.getRoot());
+    }
+  }
+
+  private void updateInitialPlan(RelNode node) {
+    if(node instanceof HepRelVertex){
+      HepRelVertex v = (HepRelVertex) node;
+      updateInitialPlan(v.getCurrentRel());
+      return;
+    }
+    this.getNodeUpdateHelper(node);
+    for(RelNode input : getInputs(node)) {
+      updateInitialPlan(input);
+    }
+  }
+
+  /**
+   * Get the inputs for a node, traversing {@link HepRelVertex}.
+   * (Workaround for HepPlanner)
+   */
+  private Collection<RelNode> getInputs(final RelNode node) {
+    return node.getInputs().stream().map(n -> {
+      if (n instanceof HepRelVertex) {
+        return ((HepRelVertex) n).getCurrentRel();
+      }
+      return n;
+    }).collect(Collectors.toList());
   }
 
   @Override public void relChosen(RelChosenEvent event) {
@@ -140,7 +174,7 @@ public class RuleMatchVisualizer implements RelOptListener {
       }
       updateFinalPlan(subset.getBest());
     } else {
-      for (RelNode input : node.getInputs()) {
+      for (RelNode input : getInputs(node)) {
         updateFinalPlan(input);
       }
     }
@@ -194,7 +228,7 @@ public class RuleMatchVisualizer implements RelOptListener {
   private void registerSet(final String setID) {
     this.allNodes.computeIfAbsent(setID, k -> {
       NodeUpdateHelper h = new NodeUpdateHelper(setID, null);
-      h.updateNodeInfo("label", setID);
+      h.updateNodeInfo("label", DEFAULT_SET.equals(setID) ? "" : setID);
       h.updateNodeInfo("kind", "set");
       return h;
     });
@@ -206,6 +240,7 @@ public class RuleMatchVisualizer implements RelOptListener {
       // attributes that need to be set only once
       h.updateNodeInfo("label", getNodeLabel(rel));
       h.updateNodeInfo("explanation", getNodeExplanation(rel));
+      h.updateNodeInfo("set", DEFAULT_SET);
 
       if (rel instanceof RelSubset) {
         h.updateNodeInfo("kind", "subset");
@@ -239,7 +274,7 @@ public class RuleMatchVisualizer implements RelOptListener {
           });
       inputs.removeAll(transitive);
     } else {
-      rel.getInputs().forEach(input -> inputs.add(key(input)));
+      getInputs(rel).forEach(input -> inputs.add(key(input)));
     }
 
     helper.updateNodeInfo("inputs", inputs);
@@ -252,6 +287,11 @@ public class RuleMatchVisualizer implements RelOptListener {
 
   private void addStep(String stepID, @Nullable RelOptRuleCall ruleCall) {
     Map<String, NodeUpdateInfo> nextNodeUpdates = new LinkedHashMap<>();
+
+    // HepPlanner compatibility
+    boolean usesDefaultSet = this.allNodes.values().stream().anyMatch(h -> DEFAULT_SET.equals(h.state.get("set")));
+    if(usesDefaultSet)
+      this.registerSet(DEFAULT_SET);
 
     for (NodeUpdateHelper h : allNodes.values()) {
       if (h.rel != null) {
@@ -319,7 +359,7 @@ public class RuleMatchVisualizer implements RelOptListener {
    * <p>
    * The old files with the same name will be replaced.
    */
-  private void writeToFile() {
+  public void writeToFile() {
     try {
       String templatePath = Paths.get(templateDirectory).resolve("viz-template.html").toString();
       ClassLoader cl = getClass().getClassLoader();

@@ -346,8 +346,8 @@ limitations under the License.
             if(node.kind === "subset")
                 popupContent = "inputs: " + node.inputs;
             else
-                popContent = node.explanation;
-            popupContent += "<br>Added in Step - "  + stepName;
+                popupContent = node.explanation;
+            popupContent += "<br>Added in Step '"  + stepName + "'";
 
             tippy(nodeElement, { content: popupContent })
             i++;
