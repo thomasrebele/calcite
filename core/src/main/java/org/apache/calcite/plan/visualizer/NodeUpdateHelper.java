@@ -21,7 +21,10 @@ import org.apache.calcite.rel.RelNode;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
 
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -29,10 +32,10 @@ import java.util.Objects;
  */
 class NodeUpdateHelper {
 
-  String key;
-  @Nullable RelNode rel;
-  NodeUpdateInfo state;
-  @Nullable NodeUpdateInfo update = null;
+  private final String key;
+  private final @Nullable RelNode rel;
+  private final NodeUpdateInfo state;
+  private @Nullable NodeUpdateInfo update = null;
 
   NodeUpdateHelper(String key, @Nullable RelNode rel) {
     this.key = key;
@@ -40,7 +43,15 @@ class NodeUpdateHelper {
     this.state = new NodeUpdateInfo();
   }
 
-  void updateNodeInfo(final String attr, final Object newValue) {
+  String getKey() {
+    return key;
+  }
+
+  @Nullable RelNode getRel() {
+    return this.rel;
+  }
+
+  void updateAttribute(final String attr, final Object newValue) {
     if (Objects.equals(newValue, state.get(attr))) {
       return;
     }
@@ -60,7 +71,37 @@ class NodeUpdateHelper {
     update.put(attr, newValue);
   }
 
-  public boolean isEmptyUpdate() {
+  boolean isEmptyUpdate() {
     return this.update == null || update.isEmpty();
+  }
+
+  /**
+   * Gets an object representing all the changes since the last call to this method.
+   *
+   * @return an object or null if there are no changes.
+   */
+  @Nullable Object getAndResetUpdate() {
+    if(isEmptyUpdate())
+      return null;
+    NodeUpdateInfo update = this.update;
+    this.update = null;
+    return update;
+  }
+
+  Map<String, Object> getState() {
+    return Collections.unmodifiableMap(this.state);
+  }
+
+  /**
+   * Get the current value for the attribute.
+   */
+  Object getValue(final String attr) {
+    return this.state.get(attr);
+  }
+
+  /**
+   * Type alias.
+   */
+  private static class NodeUpdateInfo extends LinkedHashMap<String, Object> {
   }
 }

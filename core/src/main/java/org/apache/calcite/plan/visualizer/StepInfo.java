@@ -26,11 +26,11 @@ import java.util.Map;
 class StepInfo {
   // public, so that attributes are serialized to json
   public final String id;
-  public final Map<String, NodeUpdateInfo> updates;
+  public final Map<String, Object> updates;
   public final List<String> matchedRels;
 
   StepInfo(final String id,
-      final Map<String, NodeUpdateInfo> updates, final List<String> matchedRels) {
+      final Map<String, Object> updates, final List<String> matchedRels) {
     this.id = id;
     this.updates = updates;
     this.matchedRels = matchedRels;

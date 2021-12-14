@@ -87,7 +87,7 @@ public class RuleMatchVisualizer implements RelOptListener {
 
   private String latestRuleID = "";
   private int latestRuleTransformCount = 1;
-  boolean initialized = false;
+  private boolean initialized = false;
 
   private @Nullable RelOptPlanner planner = null;
 
@@ -120,6 +120,8 @@ public class RuleMatchVisualizer implements RelOptListener {
   @Override public void ruleAttempted(RuleAttemptedEvent event) {
     // HepPlanner compatibility
     if(!initialized) {
+      assert planner != null;
+      assert planner.getRoot() != null;
       initialized = true;
       updateInitialPlan(planner.getRoot());
     }
@@ -166,7 +168,7 @@ public class RuleMatchVisualizer implements RelOptListener {
       return;
     }
 
-    this.getNodeUpdateHelper(node).updateNodeInfo("inFinalPlan", Boolean.TRUE);
+    this.getNodeUpdateHelper(node).updateAttribute("inFinalPlan", Boolean.TRUE);
     if (node instanceof RelSubset) {
       RelSubset subset = (RelSubset) node;
       if (subset.getBest() == null) {
@@ -219,7 +221,7 @@ public class RuleMatchVisualizer implements RelOptListener {
       eqClassStr = eqClassStr.replace("equivalence class ", "");
       String setId = "set-" + eqClassStr;
       registerSet(setId);
-      getNodeUpdateHelper(event.getRel()).updateNodeInfo("set", setId);
+      getNodeUpdateHelper(event.getRel()).updateAttribute("set", setId);
     }
     // register node
     this.getNodeUpdateHelper(event.getRel());
@@ -228,8 +230,8 @@ public class RuleMatchVisualizer implements RelOptListener {
   private void registerSet(final String setID) {
     this.allNodes.computeIfAbsent(setID, k -> {
       NodeUpdateHelper h = new NodeUpdateHelper(setID, null);
-      h.updateNodeInfo("label", DEFAULT_SET.equals(setID) ? "" : setID);
-      h.updateNodeInfo("kind", "set");
+      h.updateAttribute("label", DEFAULT_SET.equals(setID) ? "" : setID);
+      h.updateAttribute("kind", "set");
       return h;
     });
   }
@@ -238,12 +240,12 @@ public class RuleMatchVisualizer implements RelOptListener {
     return this.allNodes.computeIfAbsent(key(rel), k -> {
       NodeUpdateHelper h = new NodeUpdateHelper(key(rel), rel);
       // attributes that need to be set only once
-      h.updateNodeInfo("label", getNodeLabel(rel));
-      h.updateNodeInfo("explanation", getNodeExplanation(rel));
-      h.updateNodeInfo("set", DEFAULT_SET);
+      h.updateAttribute("label", getNodeLabel(rel));
+      h.updateAttribute("explanation", getNodeExplanation(rel));
+      h.updateAttribute("set", DEFAULT_SET);
 
       if (rel instanceof RelSubset) {
-        h.updateNodeInfo("kind", "subset");
+        h.updateAttribute("kind", "subset");
       }
       return h;
     });
@@ -256,7 +258,7 @@ public class RuleMatchVisualizer implements RelOptListener {
       RelMetadataQuery mq = rel.getCluster().getMetadataQuery();
       RelOptCost cost = planner.getCost(rel, mq);
       Double rowCount = mq.getRowCount(rel);
-      helper.updateNodeInfo("cost", formatCost(rowCount, cost));
+      helper.updateAttribute("cost", formatCost(rowCount, cost));
     }
 
     List<String> inputs = new ArrayList<>();
@@ -277,7 +279,7 @@ public class RuleMatchVisualizer implements RelOptListener {
       getInputs(rel).forEach(input -> inputs.add(key(input)));
     }
 
-    helper.updateNodeInfo("inputs", inputs);
+    helper.updateAttribute("inputs", inputs);
   }
 
 
@@ -286,22 +288,24 @@ public class RuleMatchVisualizer implements RelOptListener {
   }
 
   private void addStep(String stepID, @Nullable RelOptRuleCall ruleCall) {
-    Map<String, NodeUpdateInfo> nextNodeUpdates = new LinkedHashMap<>();
+    Map<String, Object> nextNodeUpdates = new LinkedHashMap<>();
 
     // HepPlanner compatibility
-    boolean usesDefaultSet = this.allNodes.values().stream().anyMatch(h -> DEFAULT_SET.equals(h.state.get("set")));
+    boolean usesDefaultSet = this.allNodes.values().stream().anyMatch(h -> DEFAULT_SET.equals(h.getValue("set")));
     if(usesDefaultSet)
       this.registerSet(DEFAULT_SET);
 
     for (NodeUpdateHelper h : allNodes.values()) {
-      if (h.rel != null) {
-        updateNodeInfo(h.rel, FINAL.equals(stepID));
+      if (h.getRel() != null) {
+        updateNodeInfo(h.getRel(), FINAL.equals(stepID));
       }
       if (h.isEmptyUpdate()) {
         continue;
       }
-      nextNodeUpdates.put(h.key, h.update);
-      h.update = null;
+      Object update = h.getAndResetUpdate();
+      if(update != null) {
+        nextNodeUpdates.put(h.getKey(), update);
+      }
     }
 
     List<String> matchedRels = ruleCall == null

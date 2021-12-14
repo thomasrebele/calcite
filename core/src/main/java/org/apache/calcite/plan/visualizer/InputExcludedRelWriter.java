@@ -45,7 +45,7 @@ class InputExcludedRelWriter implements RelWriter {
 
   private final Map<String, @Nullable Object> values = new LinkedHashMap<>();
 
-  public InputExcludedRelWriter() {
+  InputExcludedRelWriter() {
   }
 
 
