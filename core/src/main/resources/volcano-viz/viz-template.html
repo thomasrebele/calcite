@@ -139,12 +139,6 @@ limitations under the License.
 
 <script id="js">
 
-    /*
-     * Analyze data
-     */
-
-    var allNodes = data.allNodes;
-    var nodeAddedInStep = data.nodeAddedInRule;
     var rankDirs = ["BT", "RL", "TB", "LR"];
 
     /*
@@ -267,9 +261,7 @@ limitations under the License.
         updateLocation();
 
         var state = getCurrentState();
-
         var stepID = data.steps[currentStepIndex]["id"];
-        var oldStepInfo = data.ruleMatchInfoMap[stepID]
 
         // remove previous rendered view and clear graph model
         d3.select("svg g").selectAll("*").remove();
@@ -348,8 +340,14 @@ limitations under the License.
         var i = 0;
         allD3Nodes.each(nodeID => {
             var nodeElement = allD3NodeElements[i];
-            var popupContent = allNodes[nodeID].explanation;
-            popupContent += "<br>Added in Step - "  + nodeAddedInStep[nodeID];
+            var node = state.nodes[nodeID];
+            var stepName = data.steps[node.addedInStep].id;
+            var popupContent;
+            if(node.kind === "subset")
+                popupContent = "inputs: " + node.inputs;
+            else
+                popContent = node.explanation;
+            popupContent += "<br>Added in Step - "  + stepName;
 
             tippy(nodeElement, { content: popupContent })
             i++;
