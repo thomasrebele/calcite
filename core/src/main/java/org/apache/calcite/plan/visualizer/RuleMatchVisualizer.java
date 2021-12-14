@@ -14,17 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.calcite.plan.volcano;
+package org.apache.calcite.plan.visualizer;
 
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptListener;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelOptRuleCall;
+import org.apache.calcite.plan.volcano.RelSubset;
 import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
-import org.apache.calcite.sql.SqlExplainLevel;
-import org.apache.calcite.util.Pair;
 
 import org.apache.commons.io.IOUtils;
 
@@ -52,7 +50,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -74,7 +71,7 @@ import java.util.stream.Collectors;
  * visualizer.writeToFile(outputDirectory, "");
  * </pre>
  */
-public class VolcanoRuleMatchVisualizer implements RelOptListener {
+public class RuleMatchVisualizer implements RelOptListener {
 
   private static final String INITIAL = "INITIAL";
   private static final String FINAL = "FINAL";
@@ -95,7 +92,7 @@ public class VolcanoRuleMatchVisualizer implements RelOptListener {
   private final List<StepInfo> steps = new ArrayList<>();
   private final Map<String, NodeUpdateHelper> allNodes = new LinkedHashMap<>();
 
-  public VolcanoRuleMatchVisualizer(
+  public RuleMatchVisualizer(
       String outputDirectory,
       String outputSuffix) {
     this.outputDirectory = outputDirectory;
@@ -359,67 +356,6 @@ public class VolcanoRuleMatchVisualizer implements RelOptListener {
     }
   }
 
-  /**
-   * All info for one step.
-   */
-  private static class StepInfo {
-    public String id = "";
-    public Map<String, NodeUpdateInfo> updates = new LinkedHashMap<>();
-    public List<String> matchedRels;
-
-    StepInfo(final String id,
-        final Map<String, NodeUpdateInfo> updates, final List<String> matchedRels) {
-      this.id = id;
-      this.updates = updates;
-      this.matchedRels = matchedRels;
-    }
-  }
-
-  /**
-   * Type alias.
-   */
-  private static class NodeUpdateInfo extends LinkedHashMap<String, Object> {
-  }
-
-  /**
-   * Helper class to create the node update.
-   */
-  private static class NodeUpdateHelper {
-    String key;
-    private RelNode rel;
-    private NodeUpdateInfo state;
-    private NodeUpdateInfo update;
-
-    NodeUpdateHelper(String key, @Nullable RelNode rel) {
-      this.key = key;
-      this.rel = rel;
-      this.state = new NodeUpdateInfo();
-    }
-
-    private void updateNodeInfo(final String attr, final Object newValue) {
-      if (Objects.equals(newValue, state.get(attr))) {
-        return;
-      }
-
-      state.put(attr, newValue);
-
-      if (update == null) {
-        update = new NodeUpdateInfo();
-      }
-
-      if (newValue instanceof List
-          && ((List<?>) newValue).size() == 0
-          && !update.containsKey(attr)) {
-        return;
-      }
-
-      update.put(attr, newValue);
-    }
-
-    public boolean isEmptyUpdate() {
-      return this.update == null || update.isEmpty();
-    }
-  }
 
   private static String formatCost(Double rowCount, @Nullable RelOptCost cost) {
     if (cost == null) {
@@ -447,65 +383,4 @@ public class VolcanoRuleMatchVisualizer implements RelOptListener {
     return formatter.format(costRounded);
   }
 
-  /**
-   * This RelWriter is indented to be used for getting a digest of a relNode,
-   *  excluding the field of the relNode's inputs.
-   * The result digest of the RelNode only contains its own properties.
-   * <p>
-   *
-   * <pre>
-   * InputExcludedRelWriter relWriter = new InputExcludedRelWriter();
-   * rel.explain(relWriter);
-   * String digest = relWriter.toString();
-   * </pre>
-   *
-   */
-  public static class InputExcludedRelWriter implements RelWriter {
-
-    private final Map<String, @Nullable Object> values = new LinkedHashMap<>();
-
-    public InputExcludedRelWriter() {
-    }
-
-
-    @Override public void explain(RelNode rel, List<Pair<String, @Nullable Object>> valueList) {
-      valueList.forEach(pair -> {
-        assert pair.left != null;
-        this.values.put(pair.left, pair.right);
-      });
-    }
-
-    @Override public SqlExplainLevel getDetailLevel() {
-      return SqlExplainLevel.EXPPLAN_ATTRIBUTES;
-    }
-
-    @Override public RelWriter input(String term, RelNode input) {
-      // do nothing, ignore input
-      return this;
-    }
-
-    @Override public RelWriter item(String term, @Nullable Object value) {
-      this.values.put(term, value);
-      return this;
-    }
-
-    @Override public RelWriter itemIf(String term, @Nullable Object value, boolean condition) {
-      if (condition) {
-        this.values.put(term, value);
-      }
-      return this;
-    }
-
-    @Override public RelWriter done(RelNode node) {
-      return this;
-    }
-
-    @Override public boolean nest() {
-      return false;
-    }
-
-    @Override public String toString() {
-      return values.toString();
-    }
-  }
 }
