@@ -38,7 +38,6 @@ limitations under the License.
 
     li a {
         display: block;
-        /* and you can use padding for additional space if needs, as a clickable area / or other styling */
         padding: 5px 20px;
     }
 
@@ -59,7 +58,7 @@ limitations under the License.
         border: 1px solid #ccc;
     }
 
-    #rule-list-column {
+    #step-list-column {
         border-left: 1px solid #ccc;
     }
 
@@ -126,22 +125,26 @@ limitations under the License.
             <button id="toggle-list-button">≡</button>
             <button id="prev-button" disabled>◀</button>
             <button id="next-button" disabled>▶</button>
-            <div id="current-rule" style="display: inline-block"></div>
+            <div id="current-step" style="display: inline-block"></div>
         </div>
         <svg id="svg-canvas" width="100%" height="100%" ></svg>
     </div>
-    <div id="rule-list-column" class="column1">
+    <div id="step-list-column" class="column1">
         <div style="width: 100%; text-align: center">
         </div>
-        <ol id="rule-match-list" style="overflow: auto" start="0">
+        <ol id="step-list" style="overflow: auto" start="0">
         </ul>
     </div>
 </div>
 
 <script id="js">
 
+    /*
+     * Analyze data
+     */
+
     var allNodes = data.allNodes;
-    var nodeAddedInRule = data.nodeAddedInRule;
+    var nodeAddedInStep = data.nodeAddedInRule;
     var rankDirs = ["BT", "RL", "TB", "LR"];
 
     /*
@@ -185,7 +188,7 @@ limitations under the License.
      * Global State
      */
 
-    var currentRuleIndex = 0;
+    var currentStepIndex = 0;
     var currentRankDirIdx = 0;
 
     /*
@@ -194,91 +197,110 @@ limitations under the License.
 
     var updateLocation = () => {
         var urlParams = new URLSearchParams(location.search); 
-        urlParams.set("rule", currentRuleIndex);
+        urlParams.set("step", currentStepIndex);
         urlParams.set("dir", currentRankDirIdx);
         window.history.pushState({}, "", "?" + urlParams.toString());
     };
 
     var parseLocation = () => {
         var urlParams = new URLSearchParams(location.search); 
-        if (urlParams.has("rule")) {
-            var ruleIdx = Number(urlParams.get("rule"))
-            if (Number.isInteger(ruleIdx))
-                currentRuleIndex = ruleIdx;
+        if (urlParams.has("step")) {
+            var stepIdx = Number(urlParams.get("step"))
+            if (Number.isInteger(stepIdx))
+                currentStepIndex = stepIdx;
         }
         if (urlParams.has("dir")) {
             var dirIdx = Number(urlParams.get("dir"))
-            if (Number.isInteger(ruleIdx) && ruleIdx >= 0 && ruleIdx < rankDirs.length)
+            if (Number.isInteger(dirIdx) && dirIdx >= 0 && dirIdx < rankDirs.length)
                 currentRankDirIdx = dirIdx;
         }
     };
 
-    var setCurrentRule = (ruleMatchIndex) => {
+    var setCurrentStep = (stepIndex) => {
         // un-highlight previous entry
-        var prevRuleIndex = currentRuleIndex;
-        if (prevRuleIndex !== undefined) {
-            var prevRuleElement = document.getElementById(data.ruleMatchSequence[prevRuleIndex]);
-            prevRuleElement.style.backgroundColor = "#FFFFFF";
+        var prevStepIndex = currentStepIndex;
+        if (prevStepIndex !== undefined) {
+            var prevStepElement = document.getElementById(data.steps[prevStepIndex]["id"]);
+            prevStepElement.style.backgroundColor = "#FFFFFF";
         }
 
-        currentRuleIndex = ruleMatchIndex;
-        var currentRuleID = data.ruleMatchSequence[ruleMatchIndex];
-        document.getElementById('current-rule').innerText = currentRuleIndex + ": " + currentRuleID;
+        currentStepIndex = stepIndex;
+        var currentStepID = data.steps[stepIndex]["id"];
+        document.getElementById('current-step').innerText = currentStepIndex + ": " + currentStepID;
 
-        var currentRuleElement = document.getElementById(currentRuleID);
-        currentRuleElement.style.backgroundColor = "#D3D3D3";
+        var currentStepElement = document.getElementById(currentStepID);
+        currentStepElement.style.backgroundColor = "#D3D3D3";
 
         document.getElementById("prev-button").disabled = false;
         document.getElementById("next-button").disabled = false;
 
-        if (currentRuleIndex === 0) {
+        if (currentStepIndex === 0) {
             document.getElementById("prev-button").disabled = true;
         }
-        if (currentRuleIndex === data.ruleMatchSequence.length - 1) {
+        if (currentStepIndex === data.steps.length - 1) {
             document.getElementById("next-button").disabled = true;
         }
 
         updateGraph();
     }
 
+    var getCurrentState = () => {
+        var nodes = {};
+        for(var i=0; i<=currentStepIndex; i++) {
+            // recreate state by merging all updates
+            var updates = data.steps[i]["updates"];
+            Object.entries(updates).forEach(e => {
+                const [key, value] = e;
+                var nodeInfo = nodes[key] ??= {
+                    id: key,
+                    addedInStep: i,
+                };
+                Object.assign(nodeInfo, value);
+            });
+        }
+        //var newNodes = Object.values(nodes).filter(n => n.addedInStep === currentStepIndex);
+        return { nodes, };
+    };
+
     var updateGraph = () => {
         updateLocation();
-        var ruleMatchID = data.ruleMatchSequence[currentRuleIndex];
-        var ruleMatchInfo = data.ruleMatchInfoMap[ruleMatchID]
+
+        var state = getCurrentState();
+
+        var stepID = data.steps[currentStepIndex]["id"];
+        var oldStepInfo = data.ruleMatchInfoMap[stepID]
 
         // remove previous rendered view and clear graph model
         d3.select("svg g").selectAll("*").remove();
         g.nodes().slice().forEach(nodeID => g.removeNode(nodeID));
 
-        // create nodes and sets
-        for (var setID in ruleMatchInfo.nodesInSet) {
-            // add set
-            var setLabel = ruleMatchInfo.setLabels[setID];
-            if (setLabel === null || setLabel === undefined) {
-                setLabel = setID;
+        for(var n of Object.values(state.nodes)) {
+            var nodeID = n.id;
+            if(n.kind === "set") {
+                // add set
+                var setLabel = n.Label;
+                if (setLabel === null || setLabel === undefined) {
+                    setLabel = nodeID;
+                }
+                g.setNode(nodeID, {
+                    label: setLabel,
+                    clusterLabelPos: 'top'
+                });
             }
-            g.setNode(setID, {
-                label: setLabel,
-                clusterLabelPos: 'top'
-            });
-            // add nodes and node-set parent relationship
-            var nodes = ruleMatchInfo.nodesInSet[setID];
-
-            nodes.forEach(nodeID => {
-                nodeInfo = allNodes[nodeID];
+            else {
                 var nodeLabel;
-                if (ruleMatchID === "FINAL") {
-                    nodeLabel = nodeInfo.label + "--" + nodeInfo.finalCost;
+                if (stepID === "FINAL") {
+                    nodeLabel = n.label + "\n" + n.cost;
                 } else {
-                    nodeLabel = nodeInfo.label;
+                    nodeLabel = n.label;
                 }
                 var nodeStyle;
-               if (ruleMatchInfo.importanceZeroNodes
-                    && ruleMatchInfo.importanceZeroNodes.includes(nodeID)) {
+               if (oldStepInfo.importanceZeroNodes
+                    && oldStepInfo.importanceZeroNodes.includes(nodeID)) {
                     nodeStyle = "fill: #D3D3D3"
-                } else if (ruleMatchID !== "INITIAL" && ruleMatchInfo.newNodes.includes(nodeID)) {
+                } else if (stepID !== "INITIAL" && oldStepInfo.newNodes.includes(nodeID)) {
                     nodeStyle = "fill: #E0FFFF";
-                } else if (ruleMatchInfo.matchedNodes.includes(nodeID)) {
+                } else if (oldStepInfo.matchedNodes.includes(nodeID)) {
                     nodeStyle = "fill: #C8C8F3";
                 } else {
                     nodeStyle = "fill: #FFFFFF";
@@ -287,21 +309,20 @@ limitations under the License.
                     label: nodeLabel,
                     style: nodeStyle
                 });
-                g.setParent(nodeID, setID);
-            });
-        }
+                // node-set parent relationship
+                g.setParent(nodeID, n.set);
 
-        // create links
-        for (var nodeID in ruleMatchInfo.nodeInputs) {
-            var nodeInfo = allNodes[nodeID];
-            ruleMatchInfo.nodeInputs[nodeID].forEach(inputID => {
-                var inputNodeInfo = allNodes[inputID];
-                var edgeOptions = { arrowheadStyle: "normal" };
-                if (nodeInfo.subset && inputNodeInfo.subset) {
-                    edgeOptions = { style: "stroke-dasharray: 5, 5; fill: none;" };
+                // create links
+                if(n.inputs) 
+                for(var inputID of n.inputs) {
+                    var input = state.nodes[inputID];
+                    var edgeOptions = { arrowheadStyle: "normal" };
+                    if (n.kind === "subset" && input.kind === "subset") {
+                        edgeOptions = { style: "stroke-dasharray: 5, 5; fill: none;" };
+                    }
+                    g.setEdge(inputID, nodeID, edgeOptions);
                 }
-                g.setEdge(inputID, nodeID, edgeOptions);
-            });
+            }
         }
 
         g.setGraph({
@@ -324,7 +345,7 @@ limitations under the License.
         allD3Nodes.each(nodeID => {
             var nodeElement = allD3NodeElements[i];
             var popupContent = allNodes[nodeID].explanation;
-            popupContent += "<br>Added in Rule - "  + nodeAddedInRule[nodeID];
+            popupContent += "<br>Added in Step - "  + nodeAddedInStep[nodeID];
 
             tippy(nodeElement, { content: popupContent })
             i++;
@@ -336,30 +357,31 @@ limitations under the License.
      */
 
     // populate UI list
-    var ruleListElement = document.getElementById("rule-match-list");
-    data.ruleMatchSequence.forEach((ruleMatchID, index) => {
+    var stepListElement = document.getElementById("step-list");
+    data.steps.forEach((step, index) => {
+        var stepID = step["id"];
         var listItem = document.createElement("li");
         var textItem = document.createElement("a");
-        textItem.innerText = ruleMatchID;
-        textItem.id = ruleMatchID;
+        textItem.innerText = stepID;
+        textItem.id = stepID;
         textItem.setAttribute("href", "#");
 
         listItem.appendChild(textItem);
-        ruleListElement.appendChild(listItem);
+        stepListElement.appendChild(listItem);
         listItem.addEventListener("click", event => {
-            setCurrentRule(index);
+            setCurrentStep(index);
         })
     })
 
     document.getElementById("prev-button").addEventListener("click", event => {
-        if (currentRuleIndex !== 0) {
-            setCurrentRule(currentRuleIndex - 1);
+        if (currentStepIndex !== 0) {
+            setCurrentStep(currentStepIndex - 1);
         }
     });
 
     document.getElementById("next-button").addEventListener("click", event => {
-        if (currentRuleIndex !== data.ruleMatchSequence.length - 1) {
-            setCurrentRule(currentRuleIndex + 1);
+        if (currentStepIndex !== data.steps.length - 1) {
+            setCurrentStep(currentStepIndex + 1);
         }
     });
 
@@ -380,7 +402,7 @@ limitations under the License.
     document.getElementById("fit-content-button").addEventListener("click", fitContent);
 
     document.getElementById("toggle-list-button").addEventListener("click", () => {
-        var col1 = document.getElementById("rule-list-column");
+        var col1 = document.getElementById("step-list-column");
         if (col1.style.display === "none") 
             col1.style.display = "";
         else 
@@ -390,7 +412,7 @@ limitations under the License.
     // render initial state
     
     parseLocation();
-    setCurrentRule(currentRuleIndex);
+    setCurrentStep(currentStepIndex);
     fitContent();
 </script>
 
