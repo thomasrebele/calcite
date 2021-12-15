@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.calcite.plan.visualizer;
 
 import org.apache.calcite.rel.RelNode;
@@ -81,8 +80,9 @@ class NodeUpdateHelper {
    * @return an object or null if there are no changes.
    */
   @Nullable Object getAndResetUpdate() {
-    if(isEmptyUpdate())
+    if (isEmptyUpdate()) {
       return null;
+    }
     NodeUpdateInfo update = this.update;
     this.update = null;
     return update;

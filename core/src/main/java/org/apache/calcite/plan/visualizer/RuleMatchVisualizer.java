@@ -52,25 +52,23 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * This is tool to visualize the rule match process of a RelOptPlanner.
- *
- * TODO: property and documentation, usage example
- *
- * <p>To use the visualizer, add a listener before the  optimization phase.
- * Then writes the output to a file after the optimization ends.
+ * This is a tool to visualize the rule match process of a RelOptPlanner.
  *
  * <pre>
- * // create the visualizer. This attaches a listener to VolcanoPlanner
- * VolcanoRuleMatchVisualizer visualizer = VolcanoRuleMatchVisualizer.createAndAttach(planner);
+ * // create the visualizer
+ * RuleMatchVisualizer viz = new RuleMatchVisualizer("/path/to/output/dir", "file-name-suffix");
+ * viz.attachTo(planner)
  *
- * volcanoPlanner.findBestExpr();
+ * planner.findBestExpr();
  *
- * // writes the output to files
- * visualizer.writeToFile(outputDirectory, "");
+ * // extra step for HepPlanner: write the output to files
+ * // a VolcanoPlanner will call it automatically
+ * viz.writeToFile();
  * </pre>
  */
 public class RuleMatchVisualizer implements RelOptListener {
@@ -97,11 +95,25 @@ public class RuleMatchVisualizer implements RelOptListener {
   private final List<StepInfo> steps = new ArrayList<>();
   private final Map<String, NodeUpdateHelper> allNodes = new LinkedHashMap<>();
 
+  /**
+   * Use this constructor to save the result on disk at the end of the planning phase.
+   * <p>
+   * Note: when using HepPlanner, {@link #writeToFile()} needs to be called manually.
+   * </p>
+   */
   public RuleMatchVisualizer(
       String outputDirectory,
       String outputSuffix) {
-    this.outputDirectory = outputDirectory;
-    this.outputSuffix = outputSuffix;
+    this.outputDirectory = Objects.requireNonNull(outputDirectory, "outputDirectory");
+    this.outputSuffix = Objects.requireNonNull(outputSuffix, "outputSuffix");
+  }
+
+  /**
+   * Use this constructor when the result shall not be written to disk.
+   */
+  public RuleMatchVisualizer() {
+    this.outputDirectory = null;
+    this.outputSuffix = null;
   }
 
   /**
@@ -131,7 +143,7 @@ public class RuleMatchVisualizer implements RelOptListener {
 
   @Override public void ruleAttempted(RuleAttemptedEvent event) {
     // HepPlanner compatibility
-    if(!initialized) {
+    if (!initialized) {
       assert planner != null;
       assert planner.getRoot() != null;
       initialized = true;
@@ -144,13 +156,13 @@ public class RuleMatchVisualizer implements RelOptListener {
    * (Workaround for HepPlanner)
    */
   private void updateInitialPlan(RelNode node) {
-    if(node instanceof HepRelVertex){
+    if (node instanceof HepRelVertex) {
       HepRelVertex v = (HepRelVertex) node;
       updateInitialPlan(v.getCurrentRel());
       return;
     }
     this.registerRelNode(node);
-    for(RelNode input : getInputs(node)) {
+    for (RelNode input : getInputs(node)) {
       updateInitialPlan(input);
     }
   }
@@ -317,9 +329,12 @@ public class RuleMatchVisualizer implements RelOptListener {
     Map<String, Object> nextNodeUpdates = new LinkedHashMap<>();
 
     // HepPlanner compatibility
-    boolean usesDefaultSet = this.allNodes.values().stream().anyMatch(h -> DEFAULT_SET.equals(h.getValue("set")));
-    if(usesDefaultSet)
+    boolean usesDefaultSet = this.allNodes.values()
+        .stream()
+        .anyMatch(h -> DEFAULT_SET.equals(h.getValue("set")));
+    if (usesDefaultSet) {
       this.registerSet(DEFAULT_SET);
+    }
 
     for (NodeUpdateHelper h : allNodes.values()) {
       if (h.getRel() != null) {
@@ -329,7 +344,7 @@ public class RuleMatchVisualizer implements RelOptListener {
         continue;
       }
       Object update = h.getAndResetUpdate();
-      if(update != null) {
+      if (update != null) {
         nextNodeUpdates.put(h.getKey(), update);
       }
     }
@@ -340,12 +355,27 @@ public class RuleMatchVisualizer implements RelOptListener {
     this.steps.add(new StepInfo(stepID, nextNodeUpdates, matchedRels));
   }
 
+  public String getJsonStringResult() {
+    try {
+      LinkedHashMap<String, Object> data = new LinkedHashMap<>();
+      data.put("steps", steps);
+      ObjectMapper objectMapper = new ObjectMapper();
+      return objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(data);
+    } catch (JsonProcessingException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
   /**
    * Writes the HTML and JS files of the rule match visualization.
    * <p>
    * The old files with the same name will be replaced.
    */
   public void writeToFile() {
+    if (outputDirectory == null || outputSuffix == null) {
+      return;
+    }
+
     try {
       String templatePath = Paths.get(templateDirectory).resolve("viz-template.html").toString();
       ClassLoader cl = getClass().getClassLoader();
@@ -390,17 +420,6 @@ public class RuleMatchVisualizer implements RelOptListener {
     return "" + rel.getId();
   }
 
-  private String getJsonStringResult() {
-    try {
-      LinkedHashMap<String, Object> data = new LinkedHashMap<>();
-      data.put("steps", steps);
-      ObjectMapper objectMapper = new ObjectMapper();
-      return objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(data);
-    } catch (JsonProcessingException e) {
-      throw new RuntimeException(e);
-    }
-  }
-
   private String getNodeLabel(final RelNode relNode) {
     if (relNode instanceof RelSubset) {
       final RelSubset relSubset = (RelSubset) relNode;
@@ -415,11 +434,11 @@ public class RuleMatchVisualizer implements RelOptListener {
   private String getSetId(final RelSubset relSubset) {
     String explanation = getNodeExplanation(relSubset);
     int start = explanation.indexOf("RelSubset") + "RelSubset".length();
-    if(start < 0) {
+    if (start < 0) {
       return "";
     }
     int end = explanation.indexOf(".", start);
-    if(end < 0) {
+    if (end < 0) {
       return "";
     }
     return explanation.substring(start, end);

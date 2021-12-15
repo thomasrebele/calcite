@@ -14,24 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.calcite.plan.visualizer;
-
-import java.util.List;
-import java.util.Map;
 
 /**
- * All info for one step.
+ * A visualizer showing how the rules are applied step-by-step.
+ *
+ *
+ *
+ * <p>  See {@link org.apache.calcite.plan.visualizer.RuleMatchVisualizer}.
+ * </p>
  */
-class StepInfo {
-  // public, so that attributes are serialized to json
-  public final String id;
-  public final Map<String, Object> updates;
-  public final List<String> matchedRels;
-
-  StepInfo(final String id,
-      final Map<String, Object> updates, final List<String> matchedRels) {
-    this.id = id;
-    this.updates = updates;
-    this.matchedRels = matchedRels;
-  }
-}
+package org.apache.calcite.plan.visualizer;
