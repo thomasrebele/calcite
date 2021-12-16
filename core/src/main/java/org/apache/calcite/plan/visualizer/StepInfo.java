@@ -16,22 +16,35 @@
  */
 package org.apache.calcite.plan.visualizer;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
 /**
- * All info for one step.
+ * A step in the visualizer represents one rule call of the planner.
  */
 class StepInfo {
-  // public, so that attributes are serialized to json
-  public final String id;
-  public final Map<String, Object> updates;
-  public final List<String> matchedRels;
+  private final String id;
+  private final Map<String, Object> updates;
+  private final List<String> matchedRels;
 
   StepInfo(final String id,
-      final Map<String, Object> updates, final List<String> matchedRels) {
+      final Map<String, Object> updates,
+      final List<String> matchedRels) {
     this.id = id;
-    this.updates = updates;
-    this.matchedRels = matchedRels;
+    this.updates = Collections.unmodifiableMap(updates);
+    this.matchedRels = Collections.unmodifiableList(matchedRels);
+  }
+
+  public String getId() {
+    return id;
+  }
+
+  public Map<String, Object> getUpdates() {
+    return updates;
+  }
+
+  public List<String> getMatchedRels() {
+    return matchedRels;
   }
 }

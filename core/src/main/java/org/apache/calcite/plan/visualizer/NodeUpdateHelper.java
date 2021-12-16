@@ -95,7 +95,7 @@ class NodeUpdateHelper {
   /**
    * Get the current value for the attribute.
    */
-  Object getValue(final String attr) {
+  @Nullable Object getValue(final String attr) {
     return this.state.get(attr);
   }
 

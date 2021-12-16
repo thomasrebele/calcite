@@ -28,6 +28,7 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.commons.io.IOUtils;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Charsets;
 
@@ -59,7 +60,7 @@ import java.util.stream.Collectors;
 /**
  * This is a tool to visualize the rule match process of a RelOptPlanner.
  *
- * <pre>
+ * <pre>{@code
  * // create the visualizer
  * RuleMatchVisualizer viz = new RuleMatchVisualizer("/path/to/output/dir", "file-name-suffix");
  * viz.attachTo(planner)
@@ -69,7 +70,7 @@ import java.util.stream.Collectors;
  * // extra step for HepPlanner: write the output to files
  * // a VolcanoPlanner will call it automatically
  * viz.writeToFile();
- * </pre>
+ * }</pre>
  */
 public class RuleMatchVisualizer implements RelOptListener {
 
@@ -80,8 +81,8 @@ public class RuleMatchVisualizer implements RelOptListener {
   // default HTML template can be edited at
   // core/src/main/resources/volcano-viz/viz-template.html
   private final String templateDirectory = "volcano-viz";
-  private final String outputDirectory;
-  private final String outputSuffix;
+  private @Nullable final String outputDirectory;
+  private @Nullable final String outputSuffix;
 
   private String latestRuleID = "";
   private int latestRuleTransformCount = 1;
@@ -145,9 +146,10 @@ public class RuleMatchVisualizer implements RelOptListener {
     // HepPlanner compatibility
     if (!initialized) {
       assert planner != null;
-      assert planner.getRoot() != null;
+      RelNode root = planner.getRoot();
+      assert root != null;
       initialized = true;
-      updateInitialPlan(planner.getRoot());
+      updateInitialPlan(root);
     }
   }
 
@@ -195,17 +197,17 @@ public class RuleMatchVisualizer implements RelOptListener {
    */
   private void updateFinalPlan(RelNode node) {
     int size = this.steps.size();
-    if (size > 0 && FINAL.equals(this.steps.get(size - 1).id)) {
+    if (size > 0 && FINAL.equals(this.steps.get(size - 1).getId())) {
       return;
     }
 
     this.registerRelNode(node).updateAttribute("inFinalPlan", Boolean.TRUE);
     if (node instanceof RelSubset) {
-      RelSubset subset = (RelSubset) node;
-      if (subset.getBest() == null) {
+      RelNode best = ((RelSubset) node).getBest();
+      if (best == null) {
         return;
       }
-      updateFinalPlan(subset.getBest());
+      updateFinalPlan(best);
     } else {
       for (RelNode input : getInputs(node)) {
         updateFinalPlan(input);
@@ -245,17 +247,18 @@ public class RuleMatchVisualizer implements RelOptListener {
   }
 
   @Override public void relEquivalenceFound(RelEquivalenceEvent event) {
-    assert event.getRel() != null;
+    RelNode rel = event.getRel();
+    assert rel != null;
     Object eqClass = event.getEquivalenceClass();
     if (eqClass instanceof String) {
       String eqClassStr = (String) eqClass;
       eqClassStr = eqClassStr.replace("equivalence class ", "");
       String setId = "set-" + eqClassStr;
       registerSet(setId);
-      registerRelNode(event.getRel()).updateAttribute("set", setId);
+      registerRelNode(rel).updateAttribute("set", setId);
     }
     // register node
-    this.registerRelNode(event.getRel());
+    this.registerRelNode(rel);
   }
 
   /**
@@ -337,8 +340,9 @@ public class RuleMatchVisualizer implements RelOptListener {
     }
 
     for (NodeUpdateHelper h : allNodes.values()) {
-      if (h.getRel() != null) {
-        updateNodeInfo(h.getRel(), FINAL.equals(stepID));
+      RelNode rel = h.getRel();
+      if (rel != null) {
+        updateNodeInfo(rel, FINAL.equals(stepID));
       }
       if (h.isEmptyUpdate()) {
         continue;
@@ -360,7 +364,9 @@ public class RuleMatchVisualizer implements RelOptListener {
       LinkedHashMap<String, Object> data = new LinkedHashMap<>();
       data.put("steps", steps);
       ObjectMapper objectMapper = new ObjectMapper();
-      return objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(data);
+      DefaultPrettyPrinter printer = new DefaultPrettyPrinter();
+      printer = printer.withoutSpacesInObjectEntries();
+      return objectMapper.writer(printer).writeValueAsString(data);
     } catch (JsonProcessingException e) {
       throw new RuntimeException(e);
     }

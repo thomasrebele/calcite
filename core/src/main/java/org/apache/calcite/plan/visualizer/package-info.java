@@ -18,9 +18,6 @@
 /**
  * A visualizer showing how the rules are applied step-by-step.
  *
- *
- *
- * <p>  See {@link org.apache.calcite.plan.visualizer.RuleMatchVisualizer}.
- * </p>
+ * @see org.apache.calcite.plan.visualizer.RuleMatchVisualizer
  */
 package org.apache.calcite.plan.visualizer;

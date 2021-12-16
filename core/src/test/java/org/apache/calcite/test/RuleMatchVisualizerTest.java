@@ -26,7 +26,6 @@ import org.apache.calcite.plan.volcano.VolcanoPlanner;
 import org.apache.calcite.rel.RelCollationTraitDef;
 import org.apache.calcite.rel.rules.CoreRules;
 
-import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
@@ -96,18 +95,18 @@ public class RuleMatchVisualizerTest extends RelOptTestBase {
     // rename rel ids
     str = renameMatches(
         str, Pattern.compile("\"([0-9]+)\"|"
-        + "\"label\" : \"#([0-9]+)-|"
-        + "\"label\" : \"subset#([0-9]+)-|"
-        + "\"explanation\" : \"\\{subset=rel#([0-9]+):"), 1000);
+        + "\"label\" *: *\"#([0-9]+)-|"
+        + "\"label\" *: *\"subset#([0-9]+)-|"
+        + "\"explanation\" *: *\"\\{subset=rel#([0-9]+):"), 1000);
     // rename rule call ids
-    str = renameMatches(str, Pattern.compile("\"id\" : \"([0-9]+)-"), 100);
+    str = renameMatches(str, Pattern.compile("\"id\" *: *\"([0-9]+)-"), 100);
     return str;
   }
 
   /**
    * Rename the first group of each match to a consecutive index, starting at the offset.
    */
-  @NotNull private String renameMatches(final String str,
+  private String renameMatches(final String str,
       final Pattern pattern, int offset) {
     Map<String, String> rename = new HashMap<>();
     StringBuilder sb = new StringBuilder();

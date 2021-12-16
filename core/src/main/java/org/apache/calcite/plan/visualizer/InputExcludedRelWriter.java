@@ -28,16 +28,15 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * This RelWriter is indented to be used for getting a digest of a relNode,
- *  excluding the field of the relNode's inputs.
- * The result digest of the RelNode only contains its own properties.
- * <p>
+ * An implement of RelWriter for explaining a single RelNode.
+ * The result only contains the properties of the RelNode,
+ * but does not explain the children.
  *
- * <pre>
+ * <pre>{@code
  * InputExcludedRelWriter relWriter = new InputExcludedRelWriter();
  * rel.explain(relWriter);
  * String digest = relWriter.toString();
- * </pre>
+ * }</pre>
  *
  */
 class InputExcludedRelWriter implements RelWriter {
