@@ -127,6 +127,10 @@ limitations under the License.
         word-wrap: break-word;
     }
 
+    .node-link,.step-link {
+        text-decoration: underline;
+    }
+
     #toolbar button {
         padding: 0.1em;
         display: inline-block;
@@ -232,6 +236,11 @@ limitations under the License.
         }
     };
 
+    var panToNode = (nodeId) => {
+        var graphNode = g.node(nodeId);
+        zoom.translateTo(svg, graphNode.x, graphNode.y);
+    };
+
     /*
      * Global State
      */
@@ -281,9 +290,17 @@ limitations under the License.
             prevCostChangeStep = Math.max(prevCostChangeStep ?? -Infinity, refCostChangeStep ?? -Infinity);
         }
         var currentStepID = data.steps[currentStepIndex]["id"];
-        document.getElementById('current-step-info').innerHTML = currentStepIndex + ": " + currentStepID
-            + (lastNodeAddedStep === -Infinity ? "" : `, prev selected node added in <a href="#" onclick='setCurrentStep(${lastNodeAddedStep})'>step ${lastNodeAddedStep}</a>`)
-            + (prevCostChangeStep === -Infinity ? "" : `, prev selected cost/best change in <a href="#" onclick='setCurrentStep(${prevCostChangeStep})'>step ${prevCostChangeStep}</a>`);
+        var lastChangeInfo = [];
+        if (lastNodeAddedStep !== -Infinity) {
+            lastChangeInfo.push(`node added in <a href="#" onclick='setCurrentStep(${lastNodeAddedStep})'>step ${lastNodeAddedStep}</a>`);}
+        if (prevCostChangeStep !== -Infinity) {
+            lastChangeInfo.push(`cost/best change in <a href="#" onclick='setCurrentStep(${prevCostChangeStep})'>step ${prevCostChangeStep}</a>`);
+        }
+        var stepDesc = "Step " + currentStepIndex + ": " + currentStepID;
+        if (lastChangeInfo.length > 0) {
+            stepDesc += "<br/>Most recent changes to the selected nodes: " + lastChangeInfo.join(", ")
+        }
+        document.getElementById('current-step-info').innerHTML = stepDesc;
     };
 
     var setCurrentStep = (stepIndex) => {
@@ -514,23 +531,32 @@ limitations under the License.
             interactive: true,
         });
 
+        var createNodeLinks = nodeIds => {
+            var nodeIds = Array.isArray(nodeIds) ? nodeIds : [nodeIds];
+            return nodeIds.map(nodeId =>
+                `<span class='node-link' onclick='panToNode(\"${nodeId}\");'>${nodeId}</span>`).join(", ");
+        };
+
+        var createStepLink = (stepId, nodeId) => {
+            var stepName = (stepId != undefined) ? data.steps[stepId].id : "";
+            return `<span class='step-link' onclick='setCurrentStep(${stepId}); panToNode(\"${nodeId}\");'>step ${stepId}</span> '${stepName}'`;
+        };
+
         var i = 0;
         allD3Nodes.each(nodeID => {
-            var nodeElement = allD3NodeElements[i];
+            var nodeElement = allD3NodeElements[i++];
             var node = state.nodes[nodeID];
-            var stepName = data.steps[node.addedInStep].id;
-            var costChangeStepName = (node.lastCostChangeStep != undefined) ? data.steps[node.lastCostChangeStep].id : "";
             var description = node.kind !== "subset" ? node.explanation + "<br>" : "";
-            var bestInfo = node.kind !== "subset" ? "" : "Best: " + node.best + "<br>";
+            var bestInfo = node.kind !== "subset" ? "" : "Best: " + createNodeLinks(node.best) + "<br>";
             var popupContent = `${description}
-                Parents: ${node.parents}<br>
-                Inputs: ${node.inputs}<br>
+                Node: ${createNodeLinks(nodeID)}<br>
+                Parents: ${createNodeLinks(node.parents)}<br>
+                Inputs: ${createNodeLinks(node.inputs)}<br>
                 ${bestInfo}
-                Added in step ${node.addedInStep} '${stepName}'<br>
-                Last cost/best change in step ${node.lastCostChangeStep} '${costChangeStepName}'`;
+                Added in ${createStepLink(node.addedInStep, nodeID)} <br>
+                Last cost/best change in ${createStepLink(node.lastCostChangeStep, nodeID)}`;
 
             tippy(nodeElement, { content: popupContent })
-            i++;
         });
     }
 
