@@ -49,7 +49,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
@@ -140,8 +139,8 @@ public class RuleMatchVisualizer implements RelOptListener {
    */
   public void ensureInitialized() {
     if (!initialized) {
-      requireNonNull(planner);
-      RelNode root = requireNonNull(planner.getRoot());
+      requireNonNull(planner, "planner");
+      RelNode root = requireNonNull(planner.getRoot(), "root");
       initialized = true;
       updateInitialPlan(root);
     }
@@ -313,7 +312,8 @@ public class RuleMatchVisualizer implements RelOptListener {
       helper.updateAttribute("cost", formatCost(rowCount, cost));
       if (rel instanceof RelSubset) {
         final RelNode best = ((RelSubset) rel).getBest();
-        helper.updateAttribute("best", best != null ? best.getId() : "");
+        final String bestId = best != null ? Integer.toString(best.getId()) : "";
+        helper.updateAttribute("best", bestId);
       }
     }
 
