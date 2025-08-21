@@ -21,9 +21,6 @@ limitations under the License.
 <meta charset="utf-8">
 <title>Calcite Rule Match Visualization</title>
 
-<script src="https://unpkg.com/d3@7.9.0/dist/d3.min.js" charset="utf-8"></script>
-<!--<script src="https://unpkg.com/dagre-d3@0.6.4/dist/dagre-d3.min.js"></script>-->
-<script type="module" src="https://tbo47.github.io/dagre-d3-es.7.0.11.js"></script>
 <script src="https://unpkg.com/tippy.js@3/dist/tippy.all.min.js"></script>
 <script src="planner-viz-data.js"></script>
 
@@ -197,8 +194,8 @@ limitations under the License.
 </div>
 
 <script id="js" type="module">
-	import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7.9.0/+esm";
-import * as dagreD3 from "https://tbo47.github.io/dagre-d3-es.7.0.11.js";
+import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7.9.0/+esm";
+import * as dagreD3 from "https://cdn.jsdelivr.net/npm/dagre-d3-es@7.0.11/+esm";
 
     var rankDirs = ["BT", "RL", "TB", "LR"];
 
@@ -252,6 +249,22 @@ import * as dagreD3 from "https://tbo47.github.io/dagre-d3-es.7.0.11.js";
     var currentRankDirIdx = 0;
 
     /*
+     * Helper methods
+     */
+
+     var makeElement = (tag, map) => {
+        return Object.assign(document.createElement(tag), map);
+     }
+
+    var makeLinkButton = (name, onclick) => {
+        return makeElement("a", {
+            textContent: name,
+            href: "#",
+            onclick: onclick,
+        });
+     };
+
+    /*
      * Event Handler functions
      */
 
@@ -294,16 +307,27 @@ import * as dagreD3 from "https://tbo47.github.io/dagre-d3-es.7.0.11.js";
         }
         var currentStepID = data.steps[currentStepIndex]["id"];
         var lastChangeInfo = [];
+        var el = document.getElementById('current-step-info');
+        el.innerHTML = "Step " + currentStepIndex + ": " + currentStepID;
+        if (lastNodeAddedStep !== -Infinity || prevCostChangeStep !== -Infinity) {
+            el.innerHTML += "<br/>Most recent changes to the selected nodes: "
+        }
+        var delimiter = "";
         if (lastNodeAddedStep !== -Infinity) {
-            lastChangeInfo.push(`node added in <a href="#" onclick='setCurrentStep(${lastNodeAddedStep})'>step ${lastNodeAddedStep}</a>`);}
+            el.append("node added in ");
+            el.appendChild(makeLinkButton(
+                `step ${lastNodeAddedStep}`,
+                () => {setCurrentStep(lastNodeAddedStep)},
+            ));
+            delimiter = ", ";
+        }
         if (prevCostChangeStep !== -Infinity) {
-            lastChangeInfo.push(`cost/best change in <a href="#" onclick='setCurrentStep(${prevCostChangeStep})'>step ${prevCostChangeStep}</a>`);
+            el.append(delimiter + "cost/best change in ");
+            el.appendChild(makeLinkButton(
+                `step ${prevCostChangeStep}`,
+                () => {setCurrentStep(prevCostChangeStep)},
+            ));
         }
-        var stepDesc = "Step " + currentStepIndex + ": " + currentStepID;
-        if (lastChangeInfo.length > 0) {
-            stepDesc += "<br/>Most recent changes to the selected nodes: " + lastChangeInfo.join(", ")
-        }
-        document.getElementById('current-step-info').innerHTML = stepDesc;
     };
 
     var setCurrentStep = (stepIndex) => {
@@ -534,32 +558,60 @@ import * as dagreD3 from "https://tbo47.github.io/dagre-d3-es.7.0.11.js";
             interactive: true,
         });
 
-        var createNodeLinks = nodeIds => {
+        var makeBr = () => document.createElement("br");
+        var addNodeLinks = (toolTipArray, description, nodeIds) => {
             var nodeIds = Array.isArray(nodeIds) ? nodeIds : [nodeIds];
-            return nodeIds.map(nodeId =>
-                `<span class='node-link' onclick='js.panToNode(\"${nodeId}\");'>${nodeId}</span>`).join(", ");
+            toolTipArray.push(description);
+
+            var delimiter = "";
+            for(let nodeId of nodeIds) {
+                toolTipArray.push(delimiter);
+                var el = makeElement("span", {
+                    textContent: nodeId,
+                    className: "node-link",
+                    onclick: () => {panToNode(nodeId)}
+                });
+                toolTipArray.push(el);
+                delimiter = ", ";
+            }
+            toolTipArray.push(makeBr());
         };
 
         var createStepLink = (stepId, nodeId) => {
             var stepName = (stepId != undefined) ? data.steps[stepId].id : "";
-            return `<span class='step-link' onclick='setCurrentStep(${stepId}); js.panToNode(\"${nodeId}\");'>step ${stepId}</span> '${stepName}'`;
+            return makeElement("span", {
+                textContent: `step ${stepId}`,
+                className: "step-link",
+                onclick: () => {setCurrentStep(stepId); panToNode("" + nodeId);}
+            });
         };
 
         var i = 0;
         allD3Nodes.each(nodeID => {
             var nodeElement = allD3NodeElements[i++];
             var node = state.nodes[nodeID];
-            var description = node.kind !== "subset" ? node.explanation + "<br>" : "";
-            var bestInfo = node.kind !== "subset" ? "" : "Best: " + createNodeLinks(node.best) + "<br>";
-            var popupContent = `${description}
-                Node: ${createNodeLinks(nodeID)}<br>
-                Parents: ${createNodeLinks(node.parents)}<br>
-                Inputs: ${createNodeLinks(node.inputs)}<br>
-                ${bestInfo}
-                Added in ${createStepLink(node.addedInStep, nodeID)} <br>
-                Last cost/best change in ${createStepLink(node.lastCostChangeStep, nodeID)}`;
+            var tt = []; // tooltip
 
-            tippy(nodeElement, { content: popupContent })
+            var description = node.kind !== "subset" ? node.explanation: "";
+            if (description !== "") {
+                tt=tt.concat([description, makeBr()]);
+            }
+
+            addNodeLinks(tt, "Node: ", nodeID);
+            addNodeLinks(tt, "Parents: ", node.parents);
+            addNodeLinks(tt, "Inputs: ", node.inputs);
+
+            if (node.kind === "subset") {
+                addNodeLinks(tt, "Best: ", node.best);
+            }
+            tt=tt.concat([
+                "Added in ", createStepLink(node.addedInStep, nodeID), makeBr(),
+                "Last cost/best change in ", createStepLink(node.lastCostChangeStep, nodeID),
+                ]);
+            var el = document.createElement("span");
+            el.append(...tt);
+
+            tippy(nodeElement, { content: el })
         });
     }
 
