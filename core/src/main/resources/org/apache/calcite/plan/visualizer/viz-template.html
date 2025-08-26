@@ -127,6 +127,7 @@ limitations under the License.
 
     .node-link,.step-link {
         text-decoration: underline;
+	cursor: pointer;
     }
 
     #toolbar button {
@@ -176,10 +177,10 @@ limitations under the License.
         <details open><summary class="side-section">Nodes:
             <button id="export-selection" title="Export selection to clipboard">[x]→📋</button>
             <button id="import-selection" title="Import selection from clipboard">📋→[x];</button><br/>
-            <button id="select-all">[x] all</button>
-            <button id="deselect-all">[ ] all</button>
-            <button id="select-all-sets">[x] all sets</button>
-            <button id="deselect-all-sets">[ ] all sets</button>
+            <button id="select-all" title="Select everything">[x] all</button>
+            <button id="deselect-all" title="Deselect everything">[ ] all</button>
+            <button id="select-all-sets" title="Select all sets">[x] all sets</button>
+            <button id="deselect-all-sets" title="Deselect all sets">[ ] all sets</button>
             <br/>
             <button id="select-network" title="Select the nodes and the nodes on the paths between them">[x] network:</button>
             <button id="deselect-network" title="Deselect the nodes and the nodes on the paths between them">[ ] network:</button>
@@ -441,7 +442,7 @@ import * as dagreD3 from "https://cdn.jsdelivr.net/npm/dagre-d3-es@7.0.11/+esm";
             if(!acceptFn(node)) return;
 
             result.push(nodeID);
-            nextNodes = nextNodesFn(node);
+            var nextNodes = nextNodesFn(node);
             if (nextNodes)
             for(var inputID of nextNodes) {
                 fn(inputID);
