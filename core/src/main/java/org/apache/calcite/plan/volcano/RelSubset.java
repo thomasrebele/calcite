@@ -38,24 +38,30 @@ import org.apache.calcite.util.Pair;
 import org.apache.calcite.util.Util;
 import org.apache.calcite.util.trace.CalciteTrace;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
 
 import org.apiguardian.api.API;
 import org.checkerframework.checker.initialization.qual.UnderInitialization;
 import org.checkerframework.checker.nullness.qual.EnsuresNonNull;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -87,6 +93,8 @@ public class RelSubset extends AbstractRelNode {
   private static final Logger LOGGER = CalciteTrace.getPlannerTracer();
   private static final int DELIVERED = 1;
   private static final int REQUIRED = 2;
+  public static final String CYCLE_WITHOUT_ALTERNATIVES =
+      "Cannot break a cycle, because there are no alternatives";
 
   //~ Instance fields --------------------------------------------------------
 
@@ -387,6 +395,9 @@ public class RelSubset extends AbstractRelNode {
    * Recursively builds a tree consisting of the cheapest plan at each node.
    */
   RelNode buildCheapestPlan(VolcanoPlanner planner) {
+    CycleBreaker cycleBreaker = new CycleBreaker(planner);
+    cycleBreaker.visit(this, ImmutableList.of());
+
     CheapestPlanReplacer replacer = new CheapestPlanReplacer(planner);
     final RelNode cheapest = replacer.visit(this, -1, null);
 
@@ -598,6 +609,158 @@ public class RelSubset extends AbstractRelNode {
 
   @Override public String getDigest() {
     return "RelSubset#" + set.id + '.' + getTraitSet();
+  }
+
+  /**
+   * Detects cycles and tries to remove them by updating the RelSubset to point another of its {@link RelNode}s.
+   */
+  static class CycleBreaker {
+
+    final VolcanoPlanner planner;
+    final Map<Integer, List<Pair<RelNode, RelOptCost>>> breakCycles = new HashMap<>();
+
+    CycleBreaker(VolcanoPlanner planner) {
+      this.planner = planner;
+    }
+
+    /**
+     * Visits a node. It can be called several times for a node, if one of its {@link RelSubset} ancestors
+     * needs to try an alternative.
+     *
+     * @param rel the currently visited {@link RelNode}
+     * @param ancestors the path of {@link RelNode}s that lead to the current rel
+     * @return the first node where the cycle occurred, or empty
+     */
+    public Optional<Integer> visit(
+        RelNode rel,
+        @NonNull List<RelNode> ancestors) {
+      final int pId = rel.getId();
+
+      if (ancestors.contains(rel)) {
+        return Optional.of(pId);
+      }
+
+      RelNode inner = rel;
+      if (rel instanceof RelSubset) {
+        RelSubset subset = (RelSubset) inner;
+        RelNode cheapest = subset.best;
+        if (cheapest == null) {
+          return Optional.empty();
+        }
+        inner = cheapest;
+      }
+
+      List<RelNode> newAncestors = new ArrayList<>(ancestors);
+      newAncestors.add(rel);
+      Optional<Integer> result = checkInputs(inner, newAncestors);
+      if (!result.isPresent()) {
+        return result;
+      }
+
+      // Back-off to the beginning of the cycle.
+      // This will avoid all the nodes of the cycle.
+      // However, there might be scenarios where it would have been better
+      // to cut the cycle at a different node.
+      if (!Objects.equals(result.get(), pId)) {
+        return result;
+      }
+
+      return tryAlternatives(rel, newAncestors, inner);
+    }
+
+    /**
+     * Check a {@link RelNode} for cycles.
+     *
+     * @param rel the rel node whose inputs need to be checked
+     * @param newAncestors the ancestors including the rel node or its container
+     * @return the first node where the cycle occurred
+     */
+    private Optional<Integer> checkInputs(final RelNode rel, final List<RelNode> newAncestors) {
+      // We're at a leaf, so it cannot contribute to cycles.
+      if (rel.getInputs().isEmpty()) {
+        return Optional.empty();
+      }
+
+      for (RelNode c : rel.getInputs()) {
+        final Optional<Integer> visit = visit(c, newAncestors);
+        if (visit.isPresent()) {
+          // There was a cycle for this input.
+          return visit;
+        }
+      }
+      return Optional.empty();
+    }
+
+    /**
+     * Try the other {@link RelNode}s of the {@link RelSubset}.
+     *
+     * @param rel the {@link RelNode} that provides the alternatives
+     * @param newAncestors the ancestors including the rel node
+     * @param alreadyTriedRel this {@link RelNode} has already been checked for cycles
+     * @return the first node where the cycle occurred
+     */
+    private Optional<Integer> tryAlternatives(final RelNode rel, final List<RelNode> newAncestors,
+        RelNode alreadyTriedRel) {
+      // Choose next alternative.
+      if (!(rel instanceof RelSubset)) {
+        throw new IllegalStateException("Cycles can only be broken at a RelSubset");
+      }
+      RelSubset subset = (RelSubset) rel;
+
+      Deque<Pair<RelNode, RelOptCost>> alternatives = getAlternatives(subset);
+      alternatives.removeIf(a -> Objects.equals(a.left, alreadyTriedRel));
+
+      // We do not know (yet) which alternative is cycle-free,
+      // so just try them one by one.
+      while (!alternatives.isEmpty()) {
+        // Select the next alternative.
+        final Pair<RelNode, RelOptCost> pop = alternatives.pop();
+        if (pop.left == null || pop.right == null) {
+          continue;
+        }
+        subset.best = pop.left;
+        subset.bestCost = pop.right;
+
+        final Optional<Integer> result = checkInputs(subset.best, newAncestors);
+        if (!result.isPresent()) {
+          return result;
+        }
+      }
+      // We have already backed-off as much as possible,
+      // so either we find an alternative here, or we fail.
+      throw new IllegalStateException(CYCLE_WITHOUT_ALTERNATIVES);
+    }
+
+    /**
+     * Get all {@link RelNode}s within a {@link RelSubset} with their cost, in decreasing order.
+     *
+     * @param subset the {@link RelSubset}
+     * @return the {@link RelNode}s and their cost
+     */
+    private Deque<Pair<RelNode, RelOptCost>> getAlternatives(final RelSubset subset) {
+      List<Pair<RelNode, RelOptCost>> relWithCosts = new ArrayList<>();
+      for (RelNode r : subset.getRels()) {
+        final RelMetadataQuery mq = r.getCluster().getMetadataQuery();
+        final RelOptCost cost = planner.getCost(r, mq);
+        if (cost == null) {
+          continue;
+        }
+        relWithCosts.add(Pair.of(r, cost));
+      }
+      relWithCosts.sort(
+          (Pair<RelNode, RelOptCost> cost1, Pair<RelNode, RelOptCost> cost2) -> {
+            assert cost1.right != null;
+            assert cost2.right != null;
+            if (cost1.right.isLt(cost2.right)) {
+              return -1;
+            } else if (cost1.right.isEqWithEpsilon(cost2.right)) {
+              return 0;
+            } else {
+              return 1;
+            }
+          });
+      return new ArrayDeque<>(relWithCosts);
+    }
   }
 
   /**
