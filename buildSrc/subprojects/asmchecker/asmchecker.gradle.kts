@@ -16,7 +16,7 @@
  */
 
 dependencies {
-    val asmVersion = "9.6"
+    val asmVersion = providers.gradleProperty("asm.version").get()
     implementation("org.ow2.asm:asm:$asmVersion")
     implementation("org.ow2.asm:asm-analysis:$asmVersion")
     implementation("org.ow2.asm:asm-commons:$asmVersion")
