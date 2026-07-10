@@ -4879,7 +4879,7 @@ public abstract class EnumerableDefaults {
     }
 
     @Override public Set<Entry<@KeyFor("this") K, V>> entrySet() {
-      return new AbstractSet<Entry<@KeyFor("this") K, V>>() {
+      return new AbstractSet<Entry<K, V>>() {
         @SuppressWarnings("override.return.invalid")
         @Override public Iterator<Entry<K, V>> iterator() {
           final Iterator<Entry<Wrapped<K>, V>> iterator =
