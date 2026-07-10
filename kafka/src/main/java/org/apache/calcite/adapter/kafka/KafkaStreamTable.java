@@ -60,7 +60,7 @@ public class KafkaStreamTable implements ScannableTable, StreamableTable {
 
   @Override public Enumerable<@Nullable Object[]> scan(final DataContext root) {
     final AtomicBoolean cancelFlag = DataContext.Variable.CANCEL_FLAG.get(root);
-    return new AbstractEnumerable<@Nullable Object[]>() {
+    return new AbstractEnumerable<Object[]>() {
       @Override public Enumerator<@Nullable Object[]> enumerator() {
         if (tableOptions.getConsumer() != null) {
           return new KafkaMessageEnumerator(tableOptions.getConsumer(),

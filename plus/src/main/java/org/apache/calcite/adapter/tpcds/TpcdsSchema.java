@@ -158,7 +158,7 @@ public class TpcdsSchema extends AbstractSchema {
     @Override public <T> Queryable<T> asQueryable(final QueryProvider queryProvider,
         final SchemaPlus schema, final String tableName) {
       //noinspection unchecked
-      return (Queryable) new AbstractTableQueryable<@Nullable Object[]>(queryProvider,
+      return (Queryable) new AbstractTableQueryable<Object[]>(queryProvider,
           schema, this, tableName) {
         @Override public Enumerator<@Nullable Object[]> enumerator() {
           final Session session =
@@ -168,7 +168,7 @@ public class TpcdsSchema extends AbstractSchema {
           final Results results = Results.constructResults(tpcdsTable, session);
           return Linq4j.asEnumerable(results)
               .selectMany(
-                  new Function1<List<List<@Nullable String>>, Enumerable<@Nullable Object[]>>() {
+                  new Function1<List<List<String>>, Enumerable<Object[]>>() {
                     final Column[] columns = tpcdsTable.getColumns();
 
                     @Override public Enumerable<@Nullable Object[]> apply(

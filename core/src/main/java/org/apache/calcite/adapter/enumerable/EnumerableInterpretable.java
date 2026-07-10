@@ -205,10 +205,10 @@ public class EnumerableInterpretable extends ConverterImpl
 
       @Override public Enumerable<@Nullable Object[]> bind(DataContext dataContext) {
         final Enumerable<?> enumerable = bindable.bind(dataContext);
-        return new AbstractEnumerable<@Nullable Object[]>() {
+        return new AbstractEnumerable<Object[]>() {
           @Override public Enumerator<@Nullable Object[]> enumerator() {
             final Enumerator<?> enumerator = enumerable.enumerator();
-            return new Enumerator<@Nullable Object[]>() {
+            return new Enumerator<Object[]>() {
               @Override public @Nullable Object[] current() {
                 return new Object[] {enumerator.current()};
               }

@@ -87,7 +87,7 @@ class ArrayTable extends AbstractQueryableTable implements ScannableTable {
   }
 
   @Override public Enumerable<@Nullable Object[]> scan(DataContext root) {
-    return new AbstractEnumerable<@Nullable Object[]>() {
+    return new AbstractEnumerable<Object[]>() {
       @Override public Enumerator<@Nullable Object[]> enumerator() {
         final Content content = supplier.get();
         return content.arrayEnumerator();

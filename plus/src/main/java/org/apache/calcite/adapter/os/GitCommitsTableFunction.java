@@ -51,10 +51,10 @@ public class GitCommitsTableFunction {
       @Override public Enumerable<@Nullable Object[]> scan(DataContext root) {
         final Enumerable<String> enumerable =
             Processes.processLines("git", "log", "--pretty=raw");
-        return new AbstractEnumerable<@Nullable Object[]>() {
+        return new AbstractEnumerable<Object[]>() {
           @Override public Enumerator<@Nullable Object[]> enumerator() {
             final Enumerator<String> e = enumerable.enumerator();
-            return new Enumerator<@Nullable Object[]>() {
+            return new Enumerator<Object[]>() {
               private @Nullable Object @Nullable [] objects;
               private final StringBuilder b = new StringBuilder();
 

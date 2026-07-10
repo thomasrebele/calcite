@@ -118,7 +118,7 @@ public class Interpreter extends AbstractEnumerable<@Nullable Object[]>
       rows = Linq4j.iterableEnumerator(queue);
     }
 
-    return new TransformedEnumerator<Row, @Nullable Object[]>(rows) {
+    return new TransformedEnumerator<Row, Object[]>(rows) {
       @Override protected @Nullable Object[] transform(Row row) {
         return row.getValues();
       }

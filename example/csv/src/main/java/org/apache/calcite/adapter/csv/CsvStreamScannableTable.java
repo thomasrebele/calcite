@@ -62,7 +62,7 @@ public class CsvStreamScannableTable extends CsvScannableTable
     final List<RelDataType> fieldTypes = getFieldTypes(typeFactory);
     final List<Integer> fields = ImmutableIntList.identity(fieldTypes.size());
     final AtomicBoolean cancelFlag = DataContext.Variable.CANCEL_FLAG.get(root);
-    return new AbstractEnumerable<@Nullable Object[]>() {
+    return new AbstractEnumerable<Object[]>() {
       @Override public Enumerator<@Nullable Object[]> enumerator() {
         return new CsvEnumerator<>(source, cancelFlag, true, null,
             CsvEnumerator.arrayConverter(fieldTypes, fields, true), ',');

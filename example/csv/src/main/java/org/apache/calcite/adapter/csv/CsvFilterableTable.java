@@ -63,7 +63,7 @@ public class CsvFilterableTable extends CsvTable
     filters.removeIf(filter -> addFilter(filter, filterValues));
     final List<Integer> fields = ImmutableIntList.identity(fieldTypes.size());
     final AtomicBoolean cancelFlag = DataContext.Variable.CANCEL_FLAG.get(root);
-    return new AbstractEnumerable<@Nullable Object[]>() {
+    return new AbstractEnumerable<Object[]>() {
       @Override public Enumerator<@Nullable Object[]> enumerator() {
         return new CsvEnumerator<>(source, cancelFlag, false, filterValues,
             CsvEnumerator.arrayConverter(fieldTypes, fields, false), ',');

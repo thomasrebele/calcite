@@ -95,7 +95,7 @@ public class MazeTable extends AbstractTable implements ScannableTable {
     if (Maze.DEBUG) {
       maze.print(pw, true);
     }
-    return new AbstractEnumerable<@Nullable Object[]>() {
+    return new AbstractEnumerable<Object[]>() {
       @Override public Enumerator<@Nullable Object[]> enumerator() {
         final Set<Integer> solutionSet;
         if (solution) {

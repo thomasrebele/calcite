@@ -217,10 +217,10 @@ public class FilesTableFunction {
         default:
           enumerable = sourceLinux();
         }
-        return new AbstractEnumerable<@Nullable Object[]>() {
+        return new AbstractEnumerable<Object[]>() {
           @Override public Enumerator<@Nullable Object[]> enumerator() {
             final Enumerator<String> e = enumerable.enumerator();
-            return new Enumerator<@Nullable Object[]>() {
+            return new Enumerator<Object[]>() {
               @Nullable Object @Nullable [] current;
 
               @Override public Object[] current() {

@@ -1086,7 +1086,7 @@ public class EnumUtils {
   public static Enumerable<@Nullable Object[]> sessionize(
       Enumerator<@Nullable Object[]> inputEnumerator,
       int indexOfWatermarkedColumn, int indexOfKeyColumn, long gap) {
-    return new AbstractEnumerable<@Nullable Object[]>() {
+    return new AbstractEnumerable<Object[]>() {
       @Override public Enumerator<@Nullable Object[]> enumerator() {
         return new SessionizationEnumerator(inputEnumerator,
             indexOfWatermarkedColumn, indexOfKeyColumn, gap);
@@ -1234,7 +1234,7 @@ public class EnumUtils {
   public static Enumerable<@Nullable Object[]> hopping(
       Enumerator<@Nullable Object[]> inputEnumerator,
       int indexOfWatermarkedColumn, long emitFrequency, long windowSize, long offset) {
-    return new AbstractEnumerable<@Nullable Object[]>() {
+    return new AbstractEnumerable<Object[]>() {
       @Override public Enumerator<@Nullable Object[]> enumerator() {
         return new HopEnumerator(inputEnumerator,
             indexOfWatermarkedColumn, emitFrequency, windowSize, offset);

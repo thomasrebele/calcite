@@ -93,9 +93,9 @@ public class ListTransientTable extends AbstractQueryableTable
 
     final AtomicBoolean cancelFlag = DataContext.Variable.CANCEL_FLAG.get(root);
 
-    return new AbstractEnumerable<@Nullable Object[]>() {
+    return new AbstractEnumerable<Object[]>() {
       @Override public Enumerator<@Nullable Object[]> enumerator() {
-        return new Enumerator<@Nullable Object[]>() {
+        return new Enumerator<Object[]>() {
           @SuppressWarnings({"rawtypes", "unchecked"})
           private final List list = new ArrayList(rows);
           private int i = -1;
