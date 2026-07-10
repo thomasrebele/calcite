@@ -33,7 +33,7 @@ open class AsmCheckerTask : DefaultTask() {
 
     @TaskAction
     fun run() {
-        project.buildDir.walk().filter { file -> file.getName().toLowerCase().endsWith(".class") }
+        project.layout.buildDirectory.get().asFile.walk().filter { file -> file.getName().lowercase().endsWith(".class") }
             .forEach {
                 val classReader = ClassReader(Files.readAllBytes(Paths.get(it.getPath())))
                 val classVisitor = CheckClassAdapter(ClassWriter(ClassWriter.COMPUTE_MAXS))
