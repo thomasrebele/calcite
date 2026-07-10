@@ -93,38 +93,7 @@ public class ListTransientTable extends AbstractQueryableTable
 
     final AtomicBoolean cancelFlag = DataContext.Variable.CANCEL_FLAG.get(root);
 
-    return new AbstractEnumerable<Object[]>() {
-      @Override public Enumerator<@Nullable Object[]> enumerator() {
-        return new Enumerator<Object[]>() {
-          @SuppressWarnings({"rawtypes", "unchecked"})
-          private final List list = new ArrayList(rows);
-          private int i = -1;
-
-          // TODO cleaner way to handle non-array objects?
-          @Override public Object[] current() {
-            Object current = list.get(i);
-            return current != null && current.getClass().isArray()
-                ? (Object[]) current
-                : new Object[]{current};
-          }
-
-          @Override public boolean moveNext() {
-            if (cancelFlag != null && cancelFlag.get()) {
-              return false;
-            }
-
-            return ++i < list.size();
-          }
-
-          @Override public void reset() {
-            i = -1;
-          }
-
-          @Override public void close() {
-          }
-        };
-      }
-    };
+    return new ListTransientTableEnumerable(cancelFlag);
   }
 
   @Override public Expression getExpression(SchemaPlus schema, String tableName,
@@ -148,5 +117,53 @@ public class ListTransientTable extends AbstractQueryableTable
 
   @Override public Type getElementType() {
     return TYPE;
+  }
+
+  private class ListTransientTableEnumerator implements Enumerator<@Nullable Object[]> {
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private final List list;
+    private final AtomicBoolean cancelFlag;
+    private int i;
+
+    public ListTransientTableEnumerator(AtomicBoolean cancelFlag) {
+      this.cancelFlag = cancelFlag;
+      list = new ArrayList(rows);
+      i = -1;
+    }
+
+    // TODO cleaner way to handle non-array objects?
+    @Override public Object[] current() {
+      Object current = list.get(i);
+      return current != null && current.getClass().isArray()
+          ? (Object[]) current
+          : new Object[]{current};
+    }
+
+    @Override public boolean moveNext() {
+      if (cancelFlag != null && cancelFlag.get()) {
+        return false;
+      }
+
+      return ++i < list.size();
+    }
+
+    @Override public void reset() {
+      i = -1;
+    }
+
+    @Override public void close() {
+    }
+  }
+
+  private class ListTransientTableEnumerable extends AbstractEnumerable<@Nullable Object[]> {
+    private final AtomicBoolean cancelFlag;
+
+    public ListTransientTableEnumerable(AtomicBoolean cancelFlag) {
+      this.cancelFlag = cancelFlag;
+    }
+
+    @Override public Enumerator<@Nullable Object[]> enumerator() {
+      return new ListTransientTableEnumerator(cancelFlag);
+    }
   }
 }

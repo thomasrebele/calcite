@@ -95,17 +95,25 @@ public class MazeTable extends AbstractTable implements ScannableTable {
     if (Maze.DEBUG) {
       maze.print(pw, true);
     }
-    return new AbstractEnumerable<Object[]>() {
-      @Override public Enumerator<@Nullable Object[]> enumerator() {
-        final Set<Integer> solutionSet;
-        if (solution) {
-          solutionSet = maze.solve(0, 0);
-        } else {
-          solutionSet = null;
-        }
-        return Linq4j.transform(maze.enumerator(solutionSet),
-            s -> new Object[] {s});
+    return new MazeTableEnumerable(maze);
+  }
+
+  private class MazeTableEnumerable extends AbstractEnumerable<@Nullable Object[]> {
+    private final Maze maze;
+
+    public MazeTableEnumerable(Maze maze) {
+      this.maze = maze;
+    }
+
+    @Override public Enumerator<@Nullable Object[]> enumerator() {
+      final Set<Integer> solutionSet;
+      if (solution) {
+        solutionSet = maze.solve(0, 0);
+      } else {
+        solutionSet = null;
       }
-    };
+      return Linq4j.transform(maze.enumerator(solutionSet),
+          s -> new Object[] {s});
+    }
   }
 }

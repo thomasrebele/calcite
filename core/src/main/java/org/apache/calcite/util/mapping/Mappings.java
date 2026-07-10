@@ -319,16 +319,7 @@ public abstract class Mappings {
    */
   @CheckReturnValue
   public static List<@Nullable Integer> asList(final TargetMapping mapping) {
-    return new AbstractList<Integer>() {
-      @Override public @Nullable Integer get(int source) {
-        int target = mapping.getTargetOpt(source);
-        return target < 0 ? null : target;
-      }
-
-      @Override public int size() {
-        return mapping.getSourceCount();
-      }
-    };
+    return new MappingsList(mapping);
   }
 
   /**
@@ -1891,5 +1882,22 @@ public abstract class Mappings {
       newOffset += inputMapping.getTargetCount();
     }
     return mapping;
+  }
+
+  private static class MappingsList extends AbstractList<@Nullable Integer> {
+    private final TargetMapping mapping;
+
+    public MappingsList(TargetMapping mapping) {
+      this.mapping = mapping;
+    }
+
+    @Override public @Nullable Integer get(int source) {
+      int target = mapping.getTargetOpt(source);
+      return target < 0 ? null : target;
+    }
+
+    @Override public int size() {
+      return mapping.getSourceCount();
+    }
   }
 }

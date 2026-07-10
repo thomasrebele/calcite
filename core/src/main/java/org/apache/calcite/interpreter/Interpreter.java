@@ -118,11 +118,7 @@ public class Interpreter extends AbstractEnumerable<@Nullable Object[]>
       rows = Linq4j.iterableEnumerator(queue);
     }
 
-    return new TransformedEnumerator<Row, Object[]>(rows) {
-      @Override protected @Nullable Object[] transform(Row row) {
-        return row.getValues();
-      }
-    };
+    return new InterpreterEnumerator(rows);
   }
 
   @SuppressWarnings("CatchAndPrintStackTrace")
@@ -495,5 +491,16 @@ public class Interpreter extends AbstractEnumerable<@Nullable Object[]>
    * values. */
   interface ScalarCompiler {
     Scalar.Producer compile(List<RexNode> nodes, RelDataType inputRowType);
+  }
+
+  private static class InterpreterEnumerator
+      extends TransformedEnumerator<Row, @Nullable Object[]> {
+    public InterpreterEnumerator(Enumerator<Row> rows) {
+      super(rows);
+    }
+
+    @Override protected @Nullable Object[] transform(Row row) {
+      return row.getValues();
+    }
   }
 }

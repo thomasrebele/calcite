@@ -1086,12 +1086,28 @@ public class EnumUtils {
   public static Enumerable<@Nullable Object[]> sessionize(
       Enumerator<@Nullable Object[]> inputEnumerator,
       int indexOfWatermarkedColumn, int indexOfKeyColumn, long gap) {
-    return new AbstractEnumerable<Object[]>() {
-      @Override public Enumerator<@Nullable Object[]> enumerator() {
-        return new SessionizationEnumerator(inputEnumerator,
-            indexOfWatermarkedColumn, indexOfKeyColumn, gap);
-      }
-    };
+    return new SessionizeEnumerable(inputEnumerator, indexOfWatermarkedColumn, indexOfKeyColumn,
+        gap);
+  }
+
+  private static class SessionizeEnumerable extends AbstractEnumerable<@Nullable Object[]> {
+    private final Enumerator<@Nullable Object[]> inputEnumerator;
+    private final int indexOfWatermarkedColumn;
+    private final int indexOfKeyColumn;
+    private final long gap;
+
+    public SessionizeEnumerable(Enumerator<@Nullable Object[]> inputEnumerator,
+        int indexOfWatermarkedColumn, int indexOfKeyColumn, long gap) {
+      this.inputEnumerator = inputEnumerator;
+      this.indexOfWatermarkedColumn = indexOfWatermarkedColumn;
+      this.indexOfKeyColumn = indexOfKeyColumn;
+      this.gap = gap;
+    }
+
+    @Override public Enumerator<@Nullable Object[]> enumerator() {
+      return new SessionizationEnumerator(inputEnumerator, indexOfWatermarkedColumn,
+          indexOfKeyColumn, gap);
+    }
   }
 
   /** Enumerator that converts rows into sessions separated by gaps. */
@@ -1234,12 +1250,30 @@ public class EnumUtils {
   public static Enumerable<@Nullable Object[]> hopping(
       Enumerator<@Nullable Object[]> inputEnumerator,
       int indexOfWatermarkedColumn, long emitFrequency, long windowSize, long offset) {
-    return new AbstractEnumerable<Object[]>() {
-      @Override public Enumerator<@Nullable Object[]> enumerator() {
-        return new HopEnumerator(inputEnumerator,
-            indexOfWatermarkedColumn, emitFrequency, windowSize, offset);
-      }
-    };
+    return new HoppingEnumerable(inputEnumerator, indexOfWatermarkedColumn, emitFrequency,
+        windowSize, offset);
+  }
+
+  private static class HoppingEnumerable extends AbstractEnumerable<@Nullable Object[]> {
+    private final Enumerator<@Nullable Object[]> inputEnumerator;
+    private final int indexOfWatermarkedColumn;
+    private final long emitFrequency;
+    private final long windowSize;
+    private final long offset;
+
+    public HoppingEnumerable(Enumerator<@Nullable Object[]> inputEnumerator,
+        int indexOfWatermarkedColumn, long emitFrequency, long windowSize, long offset) {
+      this.inputEnumerator = inputEnumerator;
+      this.indexOfWatermarkedColumn = indexOfWatermarkedColumn;
+      this.emitFrequency = emitFrequency;
+      this.windowSize = windowSize;
+      this.offset = offset;
+    }
+
+    @Override public Enumerator<@Nullable Object[]> enumerator() {
+      return new HopEnumerator(inputEnumerator, indexOfWatermarkedColumn, emitFrequency, windowSize,
+          offset);
+    }
   }
 
   /** Enumerator that computes HOP. */

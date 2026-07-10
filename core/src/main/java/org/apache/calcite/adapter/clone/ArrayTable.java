@@ -87,12 +87,7 @@ class ArrayTable extends AbstractQueryableTable implements ScannableTable {
   }
 
   @Override public Enumerable<@Nullable Object[]> scan(DataContext root) {
-    return new AbstractEnumerable<Object[]>() {
-      @Override public Enumerator<@Nullable Object[]> enumerator() {
-        final Content content = supplier.get();
-        return content.arrayEnumerator();
-      }
-    };
+    return new ArrayTableEnumerable();
   }
 
   @Override public <T> Queryable<T> asQueryable(final QueryProvider queryProvider,
@@ -906,6 +901,13 @@ class ArrayTable extends AbstractQueryableTable implements ScannableTable {
 
       @Override public void close() {
       }
+    }
+  }
+
+  private class ArrayTableEnumerable extends AbstractEnumerable<@Nullable Object[]> {
+    @Override public Enumerator<@Nullable Object[]> enumerator() {
+      final Content content = supplier.get();
+      return content.arrayEnumerator();
     }
   }
 }

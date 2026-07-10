@@ -205,28 +205,7 @@ public class EnumerableInterpretable extends ConverterImpl
 
       @Override public Enumerable<@Nullable Object[]> bind(DataContext dataContext) {
         final Enumerable<?> enumerable = bindable.bind(dataContext);
-        return new AbstractEnumerable<Object[]>() {
-          @Override public Enumerator<@Nullable Object[]> enumerator() {
-            final Enumerator<?> enumerator = enumerable.enumerator();
-            return new Enumerator<Object[]>() {
-              @Override public @Nullable Object[] current() {
-                return new Object[] {enumerator.current()};
-              }
-
-              @Override public boolean moveNext() {
-                return enumerator.moveNext();
-              }
-
-              @Override public void reset() {
-                enumerator.reset();
-              }
-
-              @Override public void close() {
-                enumerator.close();
-              }
-            };
-          }
-        };
+        return new BoxEnumerable(enumerable);
       }
     };
   }
@@ -250,6 +229,43 @@ public class EnumerableInterpretable extends ConverterImpl
         @Nullable Object[] values = enumerator.current();
         sink.send(Row.of(values));
       }
+    }
+  }
+
+  private static class BoxEnumerator implements Enumerator<@Nullable Object[]> {
+    private final Enumerator<?> enumerator;
+
+    public BoxEnumerator(Enumerator<?> enumerator) {
+      this.enumerator = enumerator;
+    }
+
+    @Override public @Nullable Object[] current() {
+      return new Object[] { enumerator.current()};
+    }
+
+    @Override public boolean moveNext() {
+      return enumerator.moveNext();
+    }
+
+    @Override public void reset() {
+      enumerator.reset();
+    }
+
+    @Override public void close() {
+      enumerator.close();
+    }
+  }
+
+  private static class BoxEnumerable extends AbstractEnumerable<@Nullable Object[]> {
+    private final Enumerable<?> enumerable;
+
+    public BoxEnumerable(Enumerable<?> enumerable) {
+      this.enumerable = enumerable;
+    }
+
+    @Override public Enumerator<@Nullable Object[]> enumerator() {
+      final Enumerator<?> enumerator = enumerable.enumerator();
+      return new BoxEnumerator(enumerator);
     }
   }
 }

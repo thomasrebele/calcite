@@ -51,91 +51,7 @@ public class GitCommitsTableFunction {
       @Override public Enumerable<@Nullable Object[]> scan(DataContext root) {
         final Enumerable<String> enumerable =
             Processes.processLines("git", "log", "--pretty=raw");
-        return new AbstractEnumerable<Object[]>() {
-          @Override public Enumerator<@Nullable Object[]> enumerator() {
-            final Enumerator<String> e = enumerable.enumerator();
-            return new Enumerator<Object[]>() {
-              private @Nullable Object @Nullable [] objects;
-              private final StringBuilder b = new StringBuilder();
-
-              @Override public @Nullable Object[] current() {
-                if (objects == null) {
-                  throw new NoSuchElementException();
-                }
-                return objects;
-              }
-
-              @Override public boolean moveNext() {
-                if (!e.moveNext()) {
-                  objects = null;
-                  return false;
-                }
-                objects = new Object[9];
-                for (;;) {
-                  final String line = e.current();
-                  if (line.isEmpty()) {
-                    break; // next line will be start of comments
-                  }
-                  if (line.startsWith("commit ")) {
-                    objects[0] = line.substring("commit ".length());
-                  } else if (line.startsWith("tree ")) {
-                    objects[1] = line.substring("tree ".length());
-                  } else if (line.startsWith("parent ")) {
-                    if (objects[2] == null) {
-                      objects[2] = line.substring("parent ".length());
-                    } else {
-                      objects[3] = line.substring("parent ".length());
-                    }
-                  } else if (line.startsWith("author ")) {
-                    objects[4] =
-                        line.substring("author ".length(),
-                            line.length() - TS_OFF.length() - 1);
-                    objects[5] =
-                        parseLong(
-                            line.substring(line.length() - TS_OFF.length(),
-                            line.length() - OFF.length() - 1)) * 1000;
-                  } else if (line.startsWith("committer ")) {
-                    objects[6] =
-                        line.substring("committer ".length(),
-                            line.length() - TS_OFF.length() - 1);
-                    objects[7] =
-                        parseLong(
-                            line.substring(line.length() - TS_OFF.length(),
-                            line.length() - OFF.length() - 1)) * 1000;
-                  }
-                  if (!e.moveNext()) {
-                    // We have a row, and it's the last because input is empty
-                    return true;
-                  }
-                }
-                for (;;) {
-                  if (!e.moveNext()) {
-                    // We have a row, and it's the last because input is empty
-                    objects[8] = b.toString();
-                    b.setLength(0);
-                    return true;
-                  }
-                  final String line = e.current();
-                  if (line.isEmpty()) {
-                    // We're seeing the empty line at the end of message
-                    objects[8] = b.toString();
-                    b.setLength(0);
-                    return true;
-                  }
-                  b.append(line.substring("    ".length())).append("\n");
-                }
-              }
-
-              @Override public void reset() {
-                throw new UnsupportedOperationException();
-              }
-
-              @Override public void close() {
-                e.close();
-              }
-            };
-          }
-        };
+        return new GitCommitsTableFunctionEnumerable(enumerable);
       }
 
       @Override public RelDataType getRowType(RelDataTypeFactory typeFactory) {
@@ -152,5 +68,106 @@ public class GitCommitsTableFunction {
             .build();
       }
     };
+  }
+
+  private static class GitCommitsTableFunctionEnumerator implements Enumerator<@Nullable Object[]> {
+    private final Enumerator<String> e;
+    private @Nullable Object @Nullable [] objects;
+    private final StringBuilder b;
+
+    public GitCommitsTableFunctionEnumerator(Enumerator<String> e) {
+      this.e = e;
+      b = new StringBuilder();
+    }
+
+    @Override public @Nullable Object[] current() {
+      if (objects == null) {
+        throw new NoSuchElementException();
+      }
+      return objects;
+    }
+
+    @Override public boolean moveNext() {
+      if (!e.moveNext()) {
+        objects = null;
+        return false;
+      }
+      objects = new Object[9];
+      for (;;) {
+        final String line = e.current();
+        if (line.isEmpty()) {
+          break; // next line will be start of comments
+        }
+        if (line.startsWith("commit ")) {
+          objects[0] = line.substring("commit ".length());
+        } else if (line.startsWith("tree ")) {
+          objects[1] = line.substring("tree ".length());
+        } else if (line.startsWith("parent ")) {
+          if (objects[2] == null) {
+            objects[2] = line.substring("parent ".length());
+          } else {
+            objects[3] = line.substring("parent ".length());
+          }
+        } else if (line.startsWith("author ")) {
+          objects[4] =
+              line.substring("author ".length(),
+                  line.length() - TS_OFF.length() - 1);
+          objects[5] =
+              parseLong(
+                  line.substring(line.length() - TS_OFF.length(),
+                  line.length() - OFF.length() - 1)) * 1000;
+        } else if (line.startsWith("committer ")) {
+          objects[6] =
+              line.substring("committer ".length(),
+                  line.length() - TS_OFF.length() - 1);
+          objects[7] =
+              parseLong(
+                  line.substring(line.length() - TS_OFF.length(),
+                  line.length() - OFF.length() - 1)) * 1000;
+        }
+        if (!e.moveNext()) {
+          // We have a row, and it's the last because input is empty
+          return true;
+        }
+      }
+      for (;;) {
+        if (!e.moveNext()) {
+          // We have a row, and it's the last because input is empty
+          objects[8] = b.toString();
+          b.setLength(0);
+          return true;
+        }
+        final String line = e.current();
+        if (line.isEmpty()) {
+          // We're seeing the empty line at the end of message
+          objects[8] = b.toString();
+          b.setLength(0);
+          return true;
+        }
+        b.append(line.substring("    ".length())).append("\n");
+      }
+    }
+
+    @Override public void reset() {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override public void close() {
+      e.close();
+    }
+  }
+
+  private static class GitCommitsTableFunctionEnumerable
+      extends AbstractEnumerable<@Nullable Object[]> {
+    private final Enumerable<String> enumerable;
+
+    public GitCommitsTableFunctionEnumerable(Enumerable<String> enumerable) {
+      this.enumerable = enumerable;
+    }
+
+    @Override public Enumerator<@Nullable Object[]> enumerator() {
+      final Enumerator<String> e = enumerable.enumerator();
+      return new GitCommitsTableFunctionEnumerator(e);
+    }
   }
 }
