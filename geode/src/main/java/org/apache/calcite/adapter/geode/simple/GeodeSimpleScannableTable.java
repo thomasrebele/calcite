@@ -61,6 +61,13 @@ public class GeodeSimpleScannableTable extends AbstractTable implements Scannabl
     return new GeodeSimpleScannableTableEnumerable();
   }
 
+  /** Enumerable for {@link GeodeSimpleScannableTable}. */
+  private class GeodeSimpleScannableTableEnumerable extends AbstractEnumerable<@Nullable Object[]> {
+    @Override public Enumerator<@Nullable Object[]> enumerator() {
+      return new GeodeSimpleScannableTableEnumerator();
+    }
+  }
+
   /** Enumerator for {@link GeodeSimpleScannableTable}. */
   private class GeodeSimpleScannableTableEnumerator
       extends GeodeSimpleEnumerator<@Nullable Object[]> {
@@ -74,13 +81,6 @@ public class GeodeSimpleScannableTable extends AbstractTable implements Scannabl
         return (Object[]) values;
       }
       return new Object[]{values};
-    }
-  }
-
-  /** Enumerable for {@link GeodeSimpleScannableTable}. */
-  private class GeodeSimpleScannableTableEnumerable extends AbstractEnumerable<@Nullable Object[]> {
-    @Override public Enumerator<@Nullable Object[]> enumerator() {
-      return new GeodeSimpleScannableTableEnumerator();
     }
   }
 }

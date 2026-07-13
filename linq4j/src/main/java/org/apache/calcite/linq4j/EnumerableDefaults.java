@@ -4882,6 +4882,34 @@ public abstract class EnumerableDefaults {
       return new WrapMapEntrySet();
     }
 
+    /** EntrySet for {@link WrapMap}. */
+    private class WrapMapEntrySet extends AbstractSet<Entry<@KeyFor("this") K, V>> {
+      @SuppressWarnings("override.return.invalid")
+      @Override public Iterator<Entry<K, V>> iterator() {
+        final Iterator<Entry<Wrapped<K>, V>> iterator =
+            map.entrySet().iterator();
+
+        return new Iterator<Entry<K, V>>() {
+          @Override public boolean hasNext() {
+            return iterator.hasNext();
+          }
+
+          @Override public Entry<K, V> next() {
+            Entry<Wrapped<K>, V> next = iterator.next();
+            return new SimpleEntry<>(next.getKey().element, next.getValue());
+          }
+
+          @Override public void remove() {
+            iterator.remove();
+          }
+        };
+      }
+
+      @Override public int size() {
+        return map.size();
+      }
+    }
+
     @SuppressWarnings("contracts.conditional.postcondition.not.satisfied")
     @Override public boolean containsKey(@Nullable Object key) {
       return map.containsKey(wrap((K) key));
@@ -4911,34 +4939,6 @@ public abstract class EnumerableDefaults {
 
     @Override public Collection<V> values() {
       return map.values();
-    }
-
-    /** EntrySet for WrapMap. */
-    private class WrapMapEntrySet extends AbstractSet<Entry<@KeyFor("this") K, V>> {
-      @SuppressWarnings("override.return.invalid")
-      @Override public Iterator<Entry<K, V>> iterator() {
-        final Iterator<Entry<Wrapped<K>, V>> iterator =
-            map.entrySet().iterator();
-
-        return new Iterator<Entry<K, V>>() {
-          @Override public boolean hasNext() {
-            return iterator.hasNext();
-          }
-
-          @Override public Entry<K, V> next() {
-            Entry<Wrapped<K>, V> next = iterator.next();
-            return new SimpleEntry<>(next.getKey().element, next.getValue());
-          }
-
-          @Override public void remove() {
-            iterator.remove();
-          }
-        };
-      }
-
-      @Override public int size() {
-        return map.size();
-      }
     }
   }
 
