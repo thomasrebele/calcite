@@ -227,7 +227,7 @@ public class FilesTableFunction {
     private final List<String> fieldNames;
     private final String osName;
 
-    public FilesTableFunctionEnumerable(Enumerable<String> enumerable, List<String> fieldNames,
+    FilesTableFunctionEnumerable(Enumerable<String> enumerable, List<String> fieldNames,
         String osName) {
       this.enumerable = enumerable;
       this.fieldNames = fieldNames;
@@ -246,7 +246,7 @@ public class FilesTableFunction {
     private final String osName;
     @Nullable Object @Nullable [] current;
 
-    public FilesTableFunctionEnumerator(List<String> fieldNames, Enumerator<String> e,
+    FilesTableFunctionEnumerator(List<String> fieldNames, Enumerator<String> e,
         String osName) {
       this.fieldNames = fieldNames;
       this.e = e;

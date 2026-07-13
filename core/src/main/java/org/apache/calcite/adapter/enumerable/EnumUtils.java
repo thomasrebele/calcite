@@ -1096,7 +1096,7 @@ public class EnumUtils {
     private final int indexOfKeyColumn;
     private final long gap;
 
-    public SessionizeEnumerable(Enumerator<@Nullable Object[]> inputEnumerator,
+    SessionizeEnumerable(Enumerator<@Nullable Object[]> inputEnumerator,
         int indexOfWatermarkedColumn, int indexOfKeyColumn, long gap) {
       this.inputEnumerator = inputEnumerator;
       this.indexOfWatermarkedColumn = indexOfWatermarkedColumn;
@@ -1261,7 +1261,7 @@ public class EnumUtils {
     private final long windowSize;
     private final long offset;
 
-    public HoppingEnumerable(Enumerator<@Nullable Object[]> inputEnumerator,
+    HoppingEnumerable(Enumerator<@Nullable Object[]> inputEnumerator,
         int indexOfWatermarkedColumn, long emitFrequency, long windowSize, long offset) {
       this.inputEnumerator = inputEnumerator;
       this.indexOfWatermarkedColumn = indexOfWatermarkedColumn;

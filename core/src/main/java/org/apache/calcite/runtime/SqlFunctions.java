@@ -229,7 +229,7 @@ public class SqlFunctions {
       extends AbstractEnumerable<@Nullable Object[]> {
     private final Enumerator<List<@Nullable Object>> product;
 
-    public ArrayCartesianProduktEnumerable(Enumerator<List<@Nullable Object>> product) {
+    ArrayCartesianProduktEnumerable(Enumerator<List<@Nullable Object>> product) {
       this.product = product;
     }
 

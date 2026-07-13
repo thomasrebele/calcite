@@ -235,7 +235,7 @@ public class EnumerableInterpretable extends ConverterImpl
   private static class BoxEnumerator implements Enumerator<@Nullable Object[]> {
     private final Enumerator<?> enumerator;
 
-    public BoxEnumerator(Enumerator<?> enumerator) {
+    BoxEnumerator(Enumerator<?> enumerator) {
       this.enumerator = enumerator;
     }
 
@@ -259,7 +259,7 @@ public class EnumerableInterpretable extends ConverterImpl
   private static class BoxEnumerable extends AbstractEnumerable<@Nullable Object[]> {
     private final Enumerable<?> enumerable;
 
-    public BoxEnumerable(Enumerable<?> enumerable) {
+    BoxEnumerable(Enumerable<?> enumerable) {
       this.enumerable = enumerable;
     }
 

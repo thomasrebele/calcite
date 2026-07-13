@@ -495,7 +495,7 @@ public class Interpreter extends AbstractEnumerable<@Nullable Object[]>
 
   private static class InterpreterEnumerator
       extends TransformedEnumerator<Row, @Nullable Object[]> {
-    public InterpreterEnumerator(Enumerator<Row> rows) {
+    InterpreterEnumerator(Enumerator<Row> rows) {
       super(rows);
     }
 
