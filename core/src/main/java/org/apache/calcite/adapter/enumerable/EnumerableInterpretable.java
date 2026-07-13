@@ -210,28 +210,21 @@ public class EnumerableInterpretable extends ConverterImpl
     };
   }
 
-  /** Interpreter node that reads from an {@link Enumerable}.
-   *
-   * <p>From the interpreter's perspective, it is a leaf node. */
-  private static class EnumerableNode implements Node {
-    private final Enumerable<@Nullable Object[]> enumerable;
-    private final Sink sink;
+  /** Enumerable for {@link #box(Bindable)}. */
+  private static class BoxEnumerable extends AbstractEnumerable<@Nullable Object[]> {
+    private final Enumerable<?> enumerable;
 
-    EnumerableNode(Enumerable<@Nullable Object[]> enumerable, Compiler compiler,
-        EnumerableInterpretable rel) {
+    BoxEnumerable(Enumerable<?> enumerable) {
       this.enumerable = enumerable;
-      this.sink = compiler.sink(rel);
     }
 
-    @Override public void run() throws InterruptedException {
-      final Enumerator<@Nullable Object[]> enumerator = enumerable.enumerator();
-      while (enumerator.moveNext()) {
-        @Nullable Object[] values = enumerator.current();
-        sink.send(Row.of(values));
-      }
+    @Override public Enumerator<@Nullable Object[]> enumerator() {
+      final Enumerator<?> enumerator = enumerable.enumerator();
+      return new BoxEnumerator(enumerator);
     }
   }
 
+  /** Enumerator for {@link #box(Bindable)}. */
   private static class BoxEnumerator implements Enumerator<@Nullable Object[]> {
     private final Enumerator<?> enumerator;
 
@@ -256,16 +249,25 @@ public class EnumerableInterpretable extends ConverterImpl
     }
   }
 
-  private static class BoxEnumerable extends AbstractEnumerable<@Nullable Object[]> {
-    private final Enumerable<?> enumerable;
+  /** Interpreter node that reads from an {@link Enumerable}.
+   *
+   * <p>From the interpreter's perspective, it is a leaf node. */
+  private static class EnumerableNode implements Node {
+    private final Enumerable<@Nullable Object[]> enumerable;
+    private final Sink sink;
 
-    BoxEnumerable(Enumerable<?> enumerable) {
+    EnumerableNode(Enumerable<@Nullable Object[]> enumerable, Compiler compiler,
+        EnumerableInterpretable rel) {
       this.enumerable = enumerable;
+      this.sink = compiler.sink(rel);
     }
 
-    @Override public Enumerator<@Nullable Object[]> enumerator() {
-      final Enumerator<?> enumerator = enumerable.enumerator();
-      return new BoxEnumerator(enumerator);
+    @Override public void run() throws InterruptedException {
+      final Enumerator<@Nullable Object[]> enumerator = enumerable.enumerator();
+      while (enumerator.moveNext()) {
+        @Nullable Object[] values = enumerator.current();
+        sink.send(Row.of(values));
+      }
     }
   }
 }

@@ -161,6 +161,44 @@ public class TpcdsSchema extends AbstractSchema {
       return (Queryable) new TpcdsSchemaQueryable(queryProvider, schema, tableName);
     }
 
+    /** Queryable for {@link TpcdsSchema}. */
+    private class TpcdsSchemaQueryable extends AbstractTableQueryable<@Nullable Object[]> {
+      TpcdsSchemaQueryable(QueryProvider queryProvider, SchemaPlus schema,
+          String tableName) {
+        super(queryProvider, schema, TpcdsQueryableTable.this, tableName);
+      }
+
+      @Override public Enumerator<@Nullable Object[]> enumerator() {
+        final Session session =
+            Session.getDefaultSession()
+                .withTable(tpcdsTable)
+                .withScale(scaleFactor);
+        final Results results = Results.constructResults(tpcdsTable, session);
+        return Linq4j.asEnumerable(results)
+            .selectMany(new TpcdsSchemaSelector())
+            .enumerator();
+      }
+    }
+
+    /** Selector for {@link TpcdsSchema}. */
+    private class TpcdsSchemaSelector
+        implements Function1<List<List<@Nullable String>>, Enumerable<@Nullable Object[]>> {
+      final Column[] columns = tpcdsTable.getColumns();
+
+      @Override public Enumerable<@Nullable Object[]> apply(
+          List<List<@Nullable String>> inRows) {
+        final List<@Nullable Object[]> rows = new ArrayList<>();
+        for (List<@Nullable String> strings : inRows) {
+          final @Nullable Object[] values = new Object[columns.length];
+          for (int i = 0; i < strings.size(); i++) {
+            values[i] = convert(strings.get(i), columns[i]);
+          }
+          rows.add(values);
+        }
+        return Linq4j.asEnumerable(rows);
+      }
+    }
+
     @Override public RelDataType getRowType(RelDataTypeFactory typeFactory) {
       final RelDataTypeFactory.Builder builder = typeFactory.builder();
       for (Column column : tpcdsTable.getColumns()) {
@@ -192,43 +230,6 @@ public class TpcdsSchema extends AbstractSchema {
             type.getPrecision().get());
       default:
         throw new AssertionError(type.getBase() + ": " + column);
-      }
-    }
-
-    private class TpcdsSchemaSelector
-        implements Function1<List<List<@Nullable String>>, Enumerable<@Nullable Object[]>> {
-      final Column[] columns = tpcdsTable.getColumns();
-
-      @Override public Enumerable<@Nullable Object[]> apply(
-          List<List<@Nullable String>> inRows) {
-        final List<@Nullable Object[]> rows = new ArrayList<>();
-        for (List<@Nullable String> strings : inRows) {
-          final @Nullable Object[] values = new Object[columns.length];
-          for (int i = 0; i < strings.size(); i++) {
-            values[i] = convert(strings.get(i), columns[i]);
-          }
-          rows.add(values);
-        }
-        return Linq4j.asEnumerable(rows);
-      }
-
-    }
-
-    private class TpcdsSchemaQueryable extends AbstractTableQueryable<@Nullable Object[]> {
-      public TpcdsSchemaQueryable(QueryProvider queryProvider, SchemaPlus schema,
-          String tableName) {
-        super(queryProvider, schema, TpcdsQueryableTable.this, tableName);
-      }
-
-      @Override public Enumerator<@Nullable Object[]> enumerator() {
-        final Session session =
-            Session.getDefaultSession()
-                .withTable(tpcdsTable)
-                .withScale(scaleFactor);
-        final Results results = Results.constructResults(tpcdsTable, session);
-        return Linq4j.asEnumerable(results)
-            .selectMany(new TpcdsSchemaSelector())
-            .enumerator();
       }
     }
   }

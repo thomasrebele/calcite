@@ -7100,10 +7100,11 @@ public class SqlToRelConverter {
     }
   }
 
+  /** Visitor for {@link #convertMatchRecognize(Blackboard, SqlMatchRecognize)}. */
   private class PatternVarVisitor extends SqlBasicVisitor<@Nullable RexNode> {
     private final Set<String> patternVarsSet;
 
-    public PatternVarVisitor(Set<String> patternVarsSet) {
+    PatternVarVisitor(Set<String> patternVarsSet) {
       this.patternVarsSet = patternVarsSet;
     }
 

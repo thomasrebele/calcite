@@ -121,6 +121,18 @@ public class Interpreter extends AbstractEnumerable<@Nullable Object[]>
     return new InterpreterEnumerator(rows);
   }
 
+  /** Enumerator for {@link Interpreter}. */
+  private static class InterpreterEnumerator
+      extends TransformedEnumerator<Row, @Nullable Object[]> {
+    InterpreterEnumerator(Enumerator<Row> rows) {
+      super(rows);
+    }
+
+    @Override protected @Nullable Object[] transform(Row row) {
+      return row.getValues();
+    }
+  }
+
   @SuppressWarnings("CatchAndPrintStackTrace")
   private void start() {
     // We rely on the nodes being ordered leaves first.
@@ -491,16 +503,5 @@ public class Interpreter extends AbstractEnumerable<@Nullable Object[]>
    * values. */
   interface ScalarCompiler {
     Scalar.Producer compile(List<RexNode> nodes, RelDataType inputRowType);
-  }
-
-  private static class InterpreterEnumerator
-      extends TransformedEnumerator<Row, @Nullable Object[]> {
-    InterpreterEnumerator(Enumerator<Row> rows) {
-      super(rows);
-    }
-
-    @Override protected @Nullable Object[] transform(Row row) {
-      return row.getValues();
-    }
   }
 }

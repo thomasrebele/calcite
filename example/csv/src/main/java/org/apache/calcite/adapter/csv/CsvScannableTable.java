@@ -58,12 +58,13 @@ public class CsvScannableTable extends CsvTable
     return new CsvScannableTableEnumerable(cancelFlag, fieldTypes, fields);
   }
 
+  /** Enumerable for {@link CsvScannableTable}. */
   private class CsvScannableTableEnumerable extends AbstractEnumerable<@Nullable Object[]> {
     private final AtomicBoolean cancelFlag;
     private final List<RelDataType> fieldTypes;
     private final List<Integer> fields;
 
-    public CsvScannableTableEnumerable(AtomicBoolean cancelFlag, List<RelDataType> fieldTypes,
+    CsvScannableTableEnumerable(AtomicBoolean cancelFlag, List<RelDataType> fieldTypes,
         List<Integer> fields) {
       this.cancelFlag = cancelFlag;
       this.fieldTypes = fieldTypes;

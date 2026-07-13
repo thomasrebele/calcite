@@ -96,36 +96,27 @@ public class ListTransientTable extends AbstractQueryableTable
     return new ListTransientTableEnumerable(cancelFlag);
   }
 
-  @Override public Expression getExpression(SchemaPlus schema, String tableName,
-      @SuppressWarnings("rawtypes") Class clazz) {
-    return Schemas.tableExpression(schema, elementType, tableName, clazz);
+  /** Enumerable for {@link ListTransientTable}. */
+  private class ListTransientTableEnumerable extends AbstractEnumerable<@Nullable Object[]> {
+    private final AtomicBoolean cancelFlag;
+
+    ListTransientTableEnumerable(AtomicBoolean cancelFlag) {
+      this.cancelFlag = cancelFlag;
+    }
+
+    @Override public Enumerator<@Nullable Object[]> enumerator() {
+      return new ListTransientTableEnumerator(cancelFlag);
+    }
   }
 
-  @Override public <T> Queryable<T> asQueryable(QueryProvider queryProvider,
-                                                SchemaPlus schema, String tableName) {
-    return new AbstractTableQueryable<T>(queryProvider, schema, this, tableName) {
-      @Override public Enumerator<T> enumerator() {
-        //noinspection unchecked
-        return (Enumerator<T>) Linq4j.enumerator(rows);
-      }
-    };
-  }
-
-  @Override public RelDataType getRowType(RelDataTypeFactory typeFactory) {
-    return typeFactory.copyType(protoRowType);
-  }
-
-  @Override public Type getElementType() {
-    return TYPE;
-  }
-
+  /** Enumerator for {@link ListTransientTable}. */
   private class ListTransientTableEnumerator implements Enumerator<@Nullable Object[]> {
     @SuppressWarnings({"rawtypes", "unchecked"})
     private final List list;
     private final AtomicBoolean cancelFlag;
     private int i;
 
-    public ListTransientTableEnumerator(AtomicBoolean cancelFlag) {
+    ListTransientTableEnumerator(AtomicBoolean cancelFlag) {
       this.cancelFlag = cancelFlag;
       list = new ArrayList(rows);
       i = -1;
@@ -155,15 +146,26 @@ public class ListTransientTable extends AbstractQueryableTable
     }
   }
 
-  private class ListTransientTableEnumerable extends AbstractEnumerable<@Nullable Object[]> {
-    private final AtomicBoolean cancelFlag;
+  @Override public Expression getExpression(SchemaPlus schema, String tableName,
+      @SuppressWarnings("rawtypes") Class clazz) {
+    return Schemas.tableExpression(schema, elementType, tableName, clazz);
+  }
 
-    public ListTransientTableEnumerable(AtomicBoolean cancelFlag) {
-      this.cancelFlag = cancelFlag;
-    }
+  @Override public <T> Queryable<T> asQueryable(QueryProvider queryProvider,
+                                                SchemaPlus schema, String tableName) {
+    return new AbstractTableQueryable<T>(queryProvider, schema, this, tableName) {
+      @Override public Enumerator<T> enumerator() {
+        //noinspection unchecked
+        return (Enumerator<T>) Linq4j.enumerator(rows);
+      }
+    };
+  }
 
-    @Override public Enumerator<@Nullable Object[]> enumerator() {
-      return new ListTransientTableEnumerator(cancelFlag);
-    }
+  @Override public RelDataType getRowType(RelDataTypeFactory typeFactory) {
+    return typeFactory.copyType(protoRowType);
+  }
+
+  @Override public Type getElementType() {
+    return TYPE;
   }
 }

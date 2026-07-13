@@ -61,9 +61,10 @@ public class GeodeSimpleScannableTable extends AbstractTable implements Scannabl
     return new GeodeSimpleScannableTableEnumerable();
   }
 
+  /** Enumerator for {@link GeodeSimpleScannableTable}. */
   private class GeodeSimpleScannableTableEnumerator
       extends GeodeSimpleEnumerator<@Nullable Object[]> {
-    public GeodeSimpleScannableTableEnumerator() {
+    GeodeSimpleScannableTableEnumerator() {
       super(GeodeSimpleScannableTable.this.clientCache, GeodeSimpleScannableTable.this.regionName);
     }
 
@@ -76,6 +77,7 @@ public class GeodeSimpleScannableTable extends AbstractTable implements Scannabl
     }
   }
 
+  /** Enumerable for {@link GeodeSimpleScannableTable}. */
   private class GeodeSimpleScannableTableEnumerable extends AbstractEnumerable<@Nullable Object[]> {
     @Override public Enumerator<@Nullable Object[]> enumerator() {
       return new GeodeSimpleScannableTableEnumerator();

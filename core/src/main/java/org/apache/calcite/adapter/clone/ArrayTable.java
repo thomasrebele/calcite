@@ -90,6 +90,14 @@ class ArrayTable extends AbstractQueryableTable implements ScannableTable {
     return new ArrayTableEnumerable();
   }
 
+  /** Enumerable for {@link ArrayTable}. */
+  private class ArrayTableEnumerable extends AbstractEnumerable<@Nullable Object[]> {
+    @Override public Enumerator<@Nullable Object[]> enumerator() {
+      final Content content = supplier.get();
+      return content.arrayEnumerator();
+    }
+  }
+
   @Override public <T> Queryable<T> asQueryable(final QueryProvider queryProvider,
       SchemaPlus schema, String tableName) {
     return new AbstractTableQueryable<T>(queryProvider, schema, this,
@@ -901,13 +909,6 @@ class ArrayTable extends AbstractQueryableTable implements ScannableTable {
 
       @Override public void close() {
       }
-    }
-  }
-
-  private class ArrayTableEnumerable extends AbstractEnumerable<@Nullable Object[]> {
-    @Override public Enumerator<@Nullable Object[]> enumerator() {
-      final Content content = supplier.get();
-      return content.arrayEnumerator();
     }
   }
 }

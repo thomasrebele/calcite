@@ -70,12 +70,28 @@ public class GitCommitsTableFunction {
     };
   }
 
+  /** Enumerable for {@link GitCommitsTableFunction}. */
+  private static class GitCommitsTableFunctionEnumerable
+      extends AbstractEnumerable<@Nullable Object[]> {
+    private final Enumerable<String> enumerable;
+
+    GitCommitsTableFunctionEnumerable(Enumerable<String> enumerable) {
+      this.enumerable = enumerable;
+    }
+
+    @Override public Enumerator<@Nullable Object[]> enumerator() {
+      final Enumerator<String> e = enumerable.enumerator();
+      return new GitCommitsTableFunctionEnumerator(e);
+    }
+  }
+
+  /** Enumerator for {@link GitCommitsTableFunction}. */
   private static class GitCommitsTableFunctionEnumerator implements Enumerator<@Nullable Object[]> {
     private final Enumerator<String> e;
     private @Nullable Object @Nullable [] objects;
     private final StringBuilder b;
 
-    public GitCommitsTableFunctionEnumerator(Enumerator<String> e) {
+    GitCommitsTableFunctionEnumerator(Enumerator<String> e) {
       this.e = e;
       b = new StringBuilder();
     }
@@ -154,20 +170,6 @@ public class GitCommitsTableFunction {
 
     @Override public void close() {
       e.close();
-    }
-  }
-
-  private static class GitCommitsTableFunctionEnumerable
-      extends AbstractEnumerable<@Nullable Object[]> {
-    private final Enumerable<String> enumerable;
-
-    public GitCommitsTableFunctionEnumerable(Enumerable<String> enumerable) {
-      this.enumerable = enumerable;
-    }
-
-    @Override public Enumerator<@Nullable Object[]> enumerator() {
-      final Enumerator<String> e = enumerable.enumerator();
-      return new GitCommitsTableFunctionEnumerator(e);
     }
   }
 }

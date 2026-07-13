@@ -65,16 +65,13 @@ public class CsvStreamScannableTable extends CsvScannableTable
     return new CsvStreamScannableTableEnumerable(cancelFlag, fieldTypes, fields);
   }
 
-  @Override public Table stream() {
-    return this;
-  }
-
+  /** Enumerable for {@link CsvStreamScannableTable}. */
   private class CsvStreamScannableTableEnumerable extends AbstractEnumerable<@Nullable Object[]> {
     private final AtomicBoolean cancelFlag;
     private final List<RelDataType> fieldTypes;
     private final List<Integer> fields;
 
-    public CsvStreamScannableTableEnumerable(AtomicBoolean cancelFlag, List<RelDataType> fieldTypes,
+    CsvStreamScannableTableEnumerable(AtomicBoolean cancelFlag, List<RelDataType> fieldTypes,
         List<Integer> fields) {
       this.cancelFlag = cancelFlag;
       this.fieldTypes = fieldTypes;
@@ -85,5 +82,9 @@ public class CsvStreamScannableTable extends CsvScannableTable
       return new CsvEnumerator<>(source, cancelFlag, true, null,
           CsvEnumerator.arrayConverter(fieldTypes, fields, true), ',');
     }
+  }
+
+  @Override public Table stream() {
+    return this;
   }
 }

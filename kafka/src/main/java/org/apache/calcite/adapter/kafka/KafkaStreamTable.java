@@ -63,38 +63,11 @@ public class KafkaStreamTable implements ScannableTable, StreamableTable {
     return new KafkaStreamTableEnumerable(cancelFlag);
   }
 
-  @Override public RelDataType getRowType(final RelDataTypeFactory typeFactory) {
-    return tableOptions.getRowConverter().rowDataType(tableOptions.getTopicName());
-  }
-
-  @Override public Statistic getStatistic() {
-    return Statistics.of(100d, ImmutableList.of(),
-        RelCollations.createSingleton(0));
-  }
-
-  @Override public boolean isRolledUp(final String column) {
-    return false;
-  }
-
-  @Override public boolean rolledUpColumnValidInsideAgg(final String column, final SqlCall call,
-      final @Nullable SqlNode parent,
-      final @Nullable CalciteConnectionConfig config) {
-    return false;
-  }
-
-  @Override public Table stream() {
-    return this;
-  }
-
-  @Override public Schema.TableType getJdbcTableType() {
-    return Schema.TableType.STREAM;
-  }
-
-  /** Enumerable for KafkaStreamTable. */
+  /** Enumerable for {@link KafkaStreamTable}. */
   private class KafkaStreamTableEnumerable extends AbstractEnumerable<@Nullable Object[]> {
     private final AtomicBoolean cancelFlag;
 
-    public KafkaStreamTableEnumerable(AtomicBoolean cancelFlag) {
+    KafkaStreamTableEnumerable(AtomicBoolean cancelFlag) {
       this.cancelFlag = cancelFlag;
     }
 
@@ -121,5 +94,32 @@ public class KafkaStreamTable implements ScannableTable, StreamableTable {
 
       return new KafkaMessageEnumerator(consumer, tableOptions.getRowConverter(), cancelFlag);
     }
+  }
+
+  @Override public RelDataType getRowType(final RelDataTypeFactory typeFactory) {
+    return tableOptions.getRowConverter().rowDataType(tableOptions.getTopicName());
+  }
+
+  @Override public Statistic getStatistic() {
+    return Statistics.of(100d, ImmutableList.of(),
+        RelCollations.createSingleton(0));
+  }
+
+  @Override public boolean isRolledUp(final String column) {
+    return false;
+  }
+
+  @Override public boolean rolledUpColumnValidInsideAgg(final String column, final SqlCall call,
+      final @Nullable SqlNode parent,
+      final @Nullable CalciteConnectionConfig config) {
+    return false;
+  }
+
+  @Override public Table stream() {
+    return this;
+  }
+
+  @Override public Schema.TableType getJdbcTableType() {
+    return Schema.TableType.STREAM;
   }
 }

@@ -49,10 +49,11 @@ public class JsonScannableTable extends JsonTable
     return new JsconScannableTableEnumerable(root);
   }
 
+  /** Enumerable for {@link JsonScannableTable}. */
   private class JsconScannableTableEnumerable extends AbstractEnumerable<@Nullable Object[]> {
     private final DataContext root;
 
-    public JsconScannableTableEnumerable(DataContext root) {
+    JsconScannableTableEnumerable(DataContext root) {
       this.root = root;
     }
 

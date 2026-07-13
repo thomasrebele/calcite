@@ -98,10 +98,11 @@ public class MazeTable extends AbstractTable implements ScannableTable {
     return new MazeTableEnumerable(maze);
   }
 
+  /** Enumerable for {@link MazeTable}. */
   private class MazeTableEnumerable extends AbstractEnumerable<@Nullable Object[]> {
     private final Maze maze;
 
-    public MazeTableEnumerable(Maze maze) {
+    MazeTableEnumerable(Maze maze) {
       this.maze = maze;
     }
 

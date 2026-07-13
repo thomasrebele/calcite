@@ -225,6 +225,7 @@ public class SqlFunctions {
     return new ArrayCartesianProduktEnumerable(product);
   }
 
+  /** Enumerable for {@link #arrayCartesianProduct(Object[])}. */
   private static class ArrayCartesianProduktEnumerable
       extends AbstractEnumerable<@Nullable Object[]> {
     private final Enumerator<List<@Nullable Object>> product;

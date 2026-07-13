@@ -1090,6 +1090,7 @@ public class EnumUtils {
         gap);
   }
 
+  /** Enumerable for {@link #sessionize(Enumerator, int, int, long)}. */
   private static class SessionizeEnumerable extends AbstractEnumerable<@Nullable Object[]> {
     private final Enumerator<@Nullable Object[]> inputEnumerator;
     private final int indexOfWatermarkedColumn;
@@ -1254,6 +1255,7 @@ public class EnumUtils {
         windowSize, offset);
   }
 
+  /** Enumerable for {@link #hopping(Enumerator, int, long, long, long)}. */
   private static class HoppingEnumerable extends AbstractEnumerable<@Nullable Object[]> {
     private final Enumerator<@Nullable Object[]> inputEnumerator;
     private final int indexOfWatermarkedColumn;

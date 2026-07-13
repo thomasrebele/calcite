@@ -66,6 +66,27 @@ public class CsvFilterableTable extends CsvTable
     return new CsvFilterableTableEnumerable(cancelFlag, filterValues, fieldTypes, fields);
   }
 
+  /** Enumerable for {@link CsvFilterableTable}. */
+  private class CsvFilterableTableEnumerable extends AbstractEnumerable<@Nullable Object[]> {
+    private final AtomicBoolean cancelFlag;
+    private final @Nullable String[] filterValues;
+    private final List<RelDataType> fieldTypes;
+    private final List<Integer> fields;
+
+    CsvFilterableTableEnumerable(AtomicBoolean cancelFlag, @Nullable String[] filterValues,
+        List<RelDataType> fieldTypes, List<Integer> fields) {
+      this.cancelFlag = cancelFlag;
+      this.filterValues = filterValues;
+      this.fieldTypes = fieldTypes;
+      this.fields = fields;
+    }
+
+    @Override public Enumerator<@Nullable Object[]> enumerator() {
+      return new CsvEnumerator<>(source, cancelFlag, false, filterValues,
+          CsvEnumerator.arrayConverter(fieldTypes, fields, false), ',');
+    }
+  }
+
   private static boolean addFilter(RexNode filter, @Nullable Object[] filterValues) {
     if (filter.isA(SqlKind.AND)) {
         // We cannot refine(remove) the operands of AND,
@@ -88,25 +109,5 @@ public class CsvFilterableTable extends CsvTable
       }
     }
     return false;
-  }
-
-  private class CsvFilterableTableEnumerable extends AbstractEnumerable<@Nullable Object[]> {
-    private final AtomicBoolean cancelFlag;
-    private final @Nullable String[] filterValues;
-    private final List<RelDataType> fieldTypes;
-    private final List<Integer> fields;
-
-    public CsvFilterableTableEnumerable(AtomicBoolean cancelFlag, @Nullable String[] filterValues,
-        List<RelDataType> fieldTypes, List<Integer> fields) {
-      this.cancelFlag = cancelFlag;
-      this.filterValues = filterValues;
-      this.fieldTypes = fieldTypes;
-      this.fields = fields;
-    }
-
-    @Override public Enumerator<@Nullable Object[]> enumerator() {
-      return new CsvEnumerator<>(source, cancelFlag, false, filterValues,
-          CsvEnumerator.arrayConverter(fieldTypes, fields, false), ',');
-    }
   }
 }

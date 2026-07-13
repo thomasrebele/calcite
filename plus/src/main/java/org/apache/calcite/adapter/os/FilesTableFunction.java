@@ -222,6 +222,7 @@ public class FilesTableFunction {
     };
   }
 
+  /** Enumerable for {@link FilesTableFunction}. */
   private static class FilesTableFunctionEnumerable extends AbstractEnumerable<@Nullable Object[]> {
     private final Enumerable<String> enumerable;
     private final List<String> fieldNames;
@@ -240,6 +241,7 @@ public class FilesTableFunction {
     }
   }
 
+  /** Enumerator for {@link FilesTableFunction}. */
   private static class FilesTableFunctionEnumerator implements Enumerator<@Nullable Object[]> {
     private final List<String> fieldNames;
     private final Enumerator<String> e;
