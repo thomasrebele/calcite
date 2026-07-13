@@ -222,15 +222,15 @@ public class SqlFunctions {
       enumerators.add(Linq4j.enumerator((List) list));
     }
     final Enumerator<List<@Nullable Object>> product = Linq4j.product(enumerators);
-    return new ArrayCartesianProduktEnumerable(product);
+    return new ArrayCartesianProductEnumerable(product);
   }
 
   /** Enumerable for {@link #arrayCartesianProduct(Object[])}. */
-  private static class ArrayCartesianProduktEnumerable
+  private static class ArrayCartesianProductEnumerable
       extends AbstractEnumerable<@Nullable Object[]> {
     private final Enumerator<List<@Nullable Object>> product;
 
-    ArrayCartesianProduktEnumerable(Enumerator<List<@Nullable Object>> product) {
+    ArrayCartesianProductEnumerable(Enumerator<List<@Nullable Object>> product) {
       this.product = product;
     }
 

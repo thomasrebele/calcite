@@ -1106,8 +1106,8 @@ public class EnumUtils {
     }
 
     @Override public Enumerator<@Nullable Object[]> enumerator() {
-      return new SessionizationEnumerator(inputEnumerator, indexOfWatermarkedColumn,
-          indexOfKeyColumn, gap);
+      return new SessionizationEnumerator(inputEnumerator,
+          indexOfWatermarkedColumn, indexOfKeyColumn, gap);
     }
   }
 
@@ -1273,8 +1273,8 @@ public class EnumUtils {
     }
 
     @Override public Enumerator<@Nullable Object[]> enumerator() {
-      return new HopEnumerator(inputEnumerator, indexOfWatermarkedColumn, emitFrequency, windowSize,
-          offset);
+      return new HopEnumerator(inputEnumerator,
+          indexOfWatermarkedColumn, emitFrequency, windowSize, offset);
     }
   }
 
