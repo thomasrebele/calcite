@@ -98,9 +98,9 @@ public class ListTransientTable extends AbstractQueryableTable
 
   /** Enumerable for {@link ListTransientTable}. */
   private class ListTransientTableEnumerable extends AbstractEnumerable<@Nullable Object[]> {
-    private final AtomicBoolean cancelFlag;
+    private final @Nullable AtomicBoolean cancelFlag;
 
-    ListTransientTableEnumerable(AtomicBoolean cancelFlag) {
+    ListTransientTableEnumerable(@Nullable AtomicBoolean cancelFlag) {
       this.cancelFlag = cancelFlag;
     }
 
@@ -113,10 +113,10 @@ public class ListTransientTable extends AbstractQueryableTable
   private class ListTransientTableEnumerator implements Enumerator<@Nullable Object[]> {
     @SuppressWarnings({"rawtypes", "unchecked"})
     private final List list;
-    private final AtomicBoolean cancelFlag;
+    private final @Nullable AtomicBoolean cancelFlag;
     private int i;
 
-    ListTransientTableEnumerator(AtomicBoolean cancelFlag) {
+    ListTransientTableEnumerator(@Nullable AtomicBoolean cancelFlag) {
       this.cancelFlag = cancelFlag;
       list = new ArrayList(rows);
       i = -1;
